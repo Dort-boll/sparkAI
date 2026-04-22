@@ -1,0 +1,6 @@
+{
+  "name": "Spark AI",
+  "description": "An advanced AI search engine with real-time retrieval-augmented generation (RAG), featuring multi-source search, ranking, and deep reasoning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
