@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { SearchResult, CustomSource, MediaResult } from '../types';
 
+const WIKI_API = 'https://en.wikipedia.org/w/api.php';
+const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
+const WIKI_REST = 'https://en.wikipedia.org/api/rest_v1';
+
 function normalizeQuery(q: string) {
   return q.trim().toLowerCase();
 }
@@ -14,87 +18,128 @@ function expandQuery(q: string) {
   ];
 }
 
-async function searchApi(query: string): Promise<SearchResult[]> {
+// Re-implementing the robust search logic from server.ts for client-side execution
+async function searchWikipedia(query: string): Promise<SearchResult[]> {
   try {
-    const response = await axios.get('/api/search', {
-      params: { q: query },
-      timeout: 10000 // 10s timeout
+    const wikiRes = await axios.get(WIKI_API, {
+      params: {
+        action: 'query',
+        list: 'search',
+        srsearch: query,
+        format: 'json',
+        origin: '*',
+        srlimit: 5
+      }
     });
-    return Array.isArray(response.data) ? response.data : [];
+
+    const searchItems = wikiRes.data.query?.search || [];
+    const results = await Promise.all(searchItems.map(async (item: any) => {
+      const infoboxLinks: SearchResult[] = [];
+      
+      // Try Wikidata for Infobox links (CORS supported)
+      try {
+        const propsRes = await axios.get(WIKI_API, {
+          params: { action: 'query', prop: 'pageprops', titles: item.title, format: 'json', origin: '*' }
+        });
+        const pages = propsRes.data.query?.pages;
+        if (pages) {
+          const pageId = Object.keys(pages)[0];
+          const wikibaseItem = pages[pageId]?.pageprops?.wikibase_item;
+          if (wikibaseItem) {
+            const wdRes = await axios.get(WIKIDATA_API, {
+              params: { action: 'wbgetclaims', entity: wikibaseItem, format: 'json', origin: '*' }
+            });
+            const claims = wdRes.data.claims || {};
+            
+            const extractClaim = (prop: string, formatter: (val: string) => string) => {
+               const val = claims[prop]?.[0]?.mainsnak?.datavalue?.value;
+               if (typeof val === 'string') return formatter(val);
+               if (val?.id) return formatter(val.id);
+               return null;
+            };
+
+            const website = extractClaim('P856', (v) => v);
+            if (website) infoboxLinks.push({ title: `${item.title} Official Website`, url: website, source: 'Official Website', category: 'Reference', snippet: 'Official presence.' });
+
+            const twitter = extractClaim('P2002', (v) => `https://twitter.com/${v}`);
+            if (twitter) infoboxLinks.push({ title: `${item.title} on X (Twitter)`, url: twitter, source: 'Twitter Profile', category: 'Reference', snippet: 'Social media presence.' });
+          }
+        }
+      } catch (e) {}
+
+      let snippet = item.snippet.replace(/<[^>]*>?/gm, '');
+      try {
+        const detailRes = await axios.get(`${WIKI_REST}/page/summary/${encodeURIComponent(item.title)}`);
+        snippet = detailRes.data.extract || snippet;
+      } catch {}
+
+      return [
+        {
+          title: item.title,
+          snippet: snippet,
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
+          source: 'Wikipedia',
+          category: 'Reference' as const
+        },
+        ...infoboxLinks
+      ];
+    }));
+
+    return results.flat();
   } catch (error) {
-    console.error('Search API error:', query, error);
+    console.error('Wikipedia search error:', error);
     return [];
   }
 }
 
-async function multiSearch(queries: string[]): Promise<SearchResult[]> {
-  // Use a map to track unique results by URL to prevent duplicates early
-  const allResultsMap = new Map<string, SearchResult>();
-  
-  const results = await Promise.allSettled(
-    queries.map(q => searchApi(q))
-  );
-
-  results.forEach(r => {
-    if (r.status === "fulfilled") {
-      r.value.forEach(res => {
-        if (res.url && !allResultsMap.has(res.url)) {
-          allResultsMap.set(res.url, res);
-        }
-      });
-    }
-  });
-
-  return Array.from(allResultsMap.values());
-}
-
-function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
-  const seen = new Set();
-
-  return results
-    .filter(r => {
-      if (!r.url || seen.has(r.url)) return false;
-      seen.add(r.url);
-      return true;
-    })
-    .map(r => {
-      let score = 0;
-      if (r.url.includes("wikipedia")) score += 20;
-      if (r.url.includes(".edu")) score += 15;
-      if (r.url.includes(".gov")) score += 18;
-      if (r.url.includes("github")) score += 10;
-      if (r.snippet?.length > 120) score += 5;
-      return { ...r, score };
-    })
-    .sort((a, b) => (b.score || 0) - (a.score || 0))
-    .slice(0, 10);
-}
-
-export function buildContext(results: SearchResult[]) {
-  const reference = results.filter(r => r.category === 'Reference');
-  const web = results.filter(r => r.category === 'Web' || !r.category);
-
-  let context = "--- PRIMARY REFERENCE SOURCES (PRIORITIZE) ---\n";
-  if (reference.length === 0) context += "No direct reference data found.\n";
-  reference.forEach((r, i) => {
-    context += `[Source ${i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
-  });
-
-  context += "\n--- SUPPLEMENTAL WEB INTELLIGENCE ---\n";
-  if (web.length === 0) context += "No supplemental web data found.\n";
-  web.forEach((r, i) => {
-    context += `[Source ${reference.length + i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
-  });
-
-  return context;
-}
-
 async function getSummary(query: string): Promise<string | null> {
   try {
-    const response = await axios.get('/api/summary', { params: { q: query } });
-    return response.data.extract || null;
+    const searchRes = await axios.get(WIKI_API, {
+      params: { action: 'query', list: 'search', srsearch: query, format: 'json', origin: '*', srlimit: 1 }
+    });
+    const firstResult = searchRes.data.query?.search?.[0];
+    if (firstResult) {
+      const detailRes = await axios.get(WIKI_API, {
+        params: { action: 'query', prop: 'extracts', explaintext: 1, titles: firstResult.title, format: 'json', origin: '*' }
+      });
+      const pages = detailRes.data.query?.pages;
+      if (pages) {
+        const pageId = Object.keys(pages)[0];
+        let extract = pages[pageId]?.extract;
+        if (extract) return extract.replace(/[=*\\]/g, '').trim();
+      }
+    }
+  } catch (error) {}
+  return null;
+}
+
+async function getMedia(query: string): Promise<MediaResult[]> {
+  try {
+    const wikiRes = await axios.get(WIKI_API, {
+      params: {
+        action: 'query',
+        generator: 'search',
+        gsrsearch: query,
+        gsrlimit: 10,
+        prop: 'pageimages',
+        piprop: 'thumbnail',
+        pithumbsize: 600,
+        format: 'json',
+        origin: '*'
+      }
+    });
+
+    const pages = wikiRes.data.query?.pages || {};
+    return Object.values(pages)
+      .filter((page: any) => page.thumbnail?.source)
+      .map((page: any) => ({
+        type: 'image',
+        url: page.thumbnail.source,
+        thumbnail: page.thumbnail.source,
+        source: `Wikipedia: ${page.title}`
+      }));
   } catch (error) {
-    return null;
+    return [];
   }
 }
 
@@ -117,13 +162,42 @@ async function puterSearch(query: string): Promise<SearchResult[]> {
   }
 }
 
-async function getMedia(query: string): Promise<MediaResult[]> {
-  try {
-    const response = await axios.get('/api/media', { params: { q: query } });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (error) {
-    return [];
-  }
+function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
+  const seen = new Set();
+  return results
+    .filter(r => {
+      if (!r.url || seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    })
+    .map(r => {
+      let score = 0;
+      if (r.url.includes("wikipedia")) score += 20;
+      if (r.url.includes(".edu")) score += 15;
+      if (r.url.includes(".gov")) score += 18;
+      if (r.url.includes("github")) score += 10;
+      if (r.snippet?.length > 120) score += 5;
+      return { ...r, score };
+    })
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, 15);
+}
+
+export function buildContext(results: SearchResult[]) {
+  const reference = results.filter(r => r.category === 'Reference');
+  const web = results.filter(r => r.category === 'Web' || !r.category);
+
+  let context = "--- PRIMARY REFERENCE SOURCES ---\n";
+  reference.forEach((r, i) => {
+    context += `[Source ${i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
+  });
+
+  context += "\n--- SUPPLEMENTAL WEB INTELLIGENCE ---\n";
+  web.forEach((r, i) => {
+    context += `[Source ${reference.length + i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
+  });
+
+  return context;
 }
 
 export async function SparkAI_Search(
@@ -135,38 +209,24 @@ export async function SparkAI_Search(
   const summaryPromise = getSummary(normalized);
   const mediaPromise = getMedia(normalized);
 
-  // Phase 1: Reference Reasoning (Wikipedia & Custom Sources)
-  if (onStage) onStage(`Indexing Wikipedia & Reference Data for '${query}'...`);
+  if (onStage) onStage(`Indexing Reference Intelligence for '${query}'...`);
+  const wikiResults = await searchWikipedia(normalized);
   
-  // 1a. Wikipedia Content
-  const backendResults = await multiSearch([normalized]); 
-  
-  // 1b. Custom Sources Indexing
-  if (customSources.length > 0) {
-    if (onStage) onStage(`Injecting ${customSources.length} User Context Sources for '${query}'...`);
-  }
+  if (onStage) onStage(`Expanding search via Puter Web for '${query}'...`);
+  const webResults = await puterSearch(normalized);
+
+  const queries = expandQuery(normalized);
+  const expansionResults = await searchWikipedia(queries[1]);
+
   const processedCustom: SearchResult[] = customSources.map(cs => ({
     title: cs.type === 'url' ? cs.value : 'Injected Context',
-    snippet: cs.type === 'text' ? cs.value : `Data retrieved from specified custom URL: ${cs.value}. Analyzing for relevance to: ${query}...`,
+    snippet: cs.type === 'text' ? cs.value : `Data from custom URL: ${cs.value}`,
     url: cs.type === 'url' ? cs.value : '#custom',
     source: cs.type === 'url' ? 'User Link' : 'User Text',
     category: 'Reference'
   }));
 
-  const phaseOneResults = [...backendResults, ...processedCustom];
-  
-  // Preliminary context for reasoning if needed, but we keep fetching
-  
-  // Phase 2: Open Web Intelligence (Puter)
-  if (onStage) onStage(`Broadening search with Puter Web for '${query}'...`);
-  const deepResults = await puterSearch(normalized);
-  
-  // Stage 3: Multi-facet Analysis
-  if (onStage) onStage(`Orchestrating multi-source reasoning for '${query}'...`);
-  const queries = expandQuery(normalized);
-  const expansionResults = await multiSearch([queries[1], queries[2]]);
-  
-  const allResults = [...phaseOneResults, ...deepResults, ...expansionResults];
+  const allResults = [...wikiResults, ...webResults, ...expansionResults, ...processedCustom];
   const ranked = deduplicateAndRank(allResults);
   const summary = await summaryPromise;
   const media = await mediaPromise;
