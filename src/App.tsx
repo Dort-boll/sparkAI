@@ -5,7 +5,7 @@ import { generateAnswer } from './lib/reasoning';
 import { ChatInput } from './components/ChatInput';
 import { MessageItem } from './components/MessageItem';
 import { SourceManager } from './components/SourceManager';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown } from 'lucide-react';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -14,6 +14,11 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [customSources, setCustomSources] = useState<CustomSource[]>([]);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const addCustomSource = (source: Omit<CustomSource, 'id'>) => {
@@ -37,16 +42,56 @@ export default function App() {
 
   useEffect(() => {
     // Check if Puter is loaded, if not, wait
-    const checkPuter = setInterval(() => {
-      if ((window as any).puter) {
-        setStatus(null);
+    const checkPuter = setInterval(async () => {
+      const puter = (window as any).puter;
+      if (puter) {
         clearInterval(checkPuter);
+        try {
+          const signedIn = await puter.auth.isSignedIn();
+          if (signedIn) {
+            const currentUser = await puter.auth.getUser();
+            setUser(currentUser);
+            setIsAuthed(true);
+          }
+        } catch (e) {
+          console.error("Auth check failed:", e);
+        }
+        setIsReady(true);
+        setStatus(null);
       } else {
         setStatus("Waiting for Spark Engine...");
       }
     }, 500);
     return () => clearInterval(checkPuter);
   }, []);
+
+  const handleLogin = async () => {
+    const puter = (window as any).puter;
+    if (!puter) return;
+    setIsLoggingIn(true);
+    try {
+      await puter.auth.signIn();
+      const currentUser = await puter.auth.getUser();
+      setUser(currentUser);
+      setIsAuthed(true);
+    } catch (e) {
+      console.error("Sign in failed", e);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    const puter = (window as any).puter;
+    if (!puter) return;
+    try {
+      await puter.auth.signOut();
+      setIsAuthed(false);
+      setUser(null);
+    } catch (e) {
+      console.error("Sign out failed", e);
+    }
+  };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -137,6 +182,50 @@ export default function App() {
     }
   };
 
+  if (!isReady) {
+    return (
+       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4">
+         <Sparkles size={48} className="text-brand animate-pulse mb-6" />
+         <div className="flex items-center gap-3">
+           <Cpu size={18} className="text-brand animate-spin" />
+           <span className="text-sm font-bold text-slate-300 uppercase tracking-widest">{status || "Initializing..."}</span>
+         </div>
+       </div>
+    );
+  }
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="glass-card flex flex-col items-center justify-center text-center p-8 sm:p-10 max-w-md w-full relative z-10"
+        >
+           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand to-brand-dark flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.5)] mb-6">
+              <Sparkles size={32} className="text-white" />
+           </div>
+           <h1 className="text-3xl font-display font-bold text-white tracking-tight mb-2">Spark AI</h1>
+           <p className="text-sm text-slate-400 leading-relaxed mb-8">
+             Advanced real-time continuous reasoning engine. Please sign in securely via your Puter.js network pass.
+           </p>
+           
+           <button 
+             onClick={handleLogin}
+             disabled={isLoggingIn}
+             className="w-full relative group overflow-hidden bg-white text-slate-900 font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] disabled:opacity-70 disabled:pointer-events-none"
+           >
+             <span className="relative z-10 flex items-center justify-center gap-2">
+                {isLoggingIn ? <Cpu className="animate-spin" size={16} /> : <User size={16} />}
+                {isLoggingIn ? "Authenticating Request..." : "Sign in to Continue"}
+             </span>
+             <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-purple-400/20 translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-500" />
+           </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] flex flex-col w-full overflow-x-hidden">
       {/* Header */}
@@ -170,6 +259,21 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button className="p-2 sm:p-2.5 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-white border border-transparent hover:border-white/10">
               <History size={18} className="sm:w-5 sm:h-5" />
+            </button>
+            <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
+            <button 
+              onClick={handleLogout}
+              className="hidden sm:flex items-center gap-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-400/20 px-3 py-2"
+              title="Sign Out"
+            >
+              <span className="text-xs font-bold whitespace-nowrap max-w-[100px] truncate">{user?.username || "Puter User"}</span>
+              <LogOut size={16} />
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="sm:hidden p-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400"
+            >
+              <LogOut size={18} />
             </button>
           </div>
         </div>
