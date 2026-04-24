@@ -18,6 +18,8 @@ export default function App() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isDeepMode, setIsDeepMode] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -33,7 +35,9 @@ export default function App() {
   useEffect(() => {
     const handleScroll = () => {
       const isBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 150;
+      const scrolled = window.scrollY > 10;
       setIsAtBottom(isBottom);
+      setIsScrolled(scrolled);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -41,56 +45,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Check if Puter is loaded, if not, wait
-    const checkPuter = setInterval(async () => {
-      const puter = (window as any).puter;
-      if (puter) {
-        clearInterval(checkPuter);
-        try {
-          const signedIn = await puter.auth.isSignedIn();
-          if (signedIn) {
-            const currentUser = await puter.auth.getUser();
-            setUser(currentUser);
-            setIsAuthed(true);
-          }
-        } catch (e) {
-          console.error("Auth check failed:", e);
-        }
-        setIsReady(true);
-        setStatus(null);
-      } else {
-        setStatus("Waiting for Spark Engine...");
-      }
-    }, 500);
-    return () => clearInterval(checkPuter);
+    // Spark AI is always ready in this version
+    setIsReady(true);
+    setIsAuthed(true); // Bypass auth
+    setStatus(null);
   }, []);
 
   const handleLogin = async () => {
-    const puter = (window as any).puter;
-    if (!puter) return;
-    setIsLoggingIn(true);
-    try {
-      await puter.auth.signIn();
-      const currentUser = await puter.auth.getUser();
-      setUser(currentUser);
-      setIsAuthed(true);
-    } catch (e) {
-      console.error("Sign in failed", e);
-    } finally {
-      setIsLoggingIn(false);
-    }
+    // No-op or simulated login if needed
+    setIsAuthed(true);
   };
 
   const handleLogout = async () => {
-    const puter = (window as any).puter;
-    if (!puter) return;
-    try {
-      await puter.auth.signOut();
-      setIsAuthed(false);
-      setUser(null);
-    } catch (e) {
-      console.error("Sign out failed", e);
-    }
+    setIsAuthed(false);
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -104,10 +71,6 @@ export default function App() {
   }, [messages, status]);
 
   const handleSend = async (query: string) => {
-    if (!(window as any).puter) {
-      alert("Spark AI is still initializing. Please wait a moment.");
-      return;
-    }
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -119,16 +82,25 @@ export default function App() {
     setIsLoading(true);
     setStatus("Initiating Spark Pipeline...");
 
+    // Deep Mode is now always available
+    const effectiveDeepMode = isDeepMode;
+
     try {
       // 1. Staged Search Phase
-      const { sources, context, summary, media, queries: expandedQueries } = await SparkAI_Search(query, customSources, (stage) => {
-        setStatus(stage);
-      });
+      const { sources, context, summary, media, queries: expandedQueries } = await SparkAI_Search(
+        query, 
+        customSources, 
+        (stage) => setStatus(stage),
+        effectiveDeepMode
+      );
       
+      if (!sources || sources.length === 0) {
+        throw new Error("No intelligence signals retrieved. Spark Engine needs more data or a different query.");
+      }
       const referenceCount = sources.filter(s => s.category === 'Reference').length;
       const webCount = sources.filter(s => s.category === 'Web').length;
       
-      setStatus(`Refining ${referenceCount} Reference & ${webCount} Web insights...`);
+      setStatus(`Refining ${referenceCount} Reference & ${webCount} Insights...`);
 
       // 2. Initialize Assistant Message
       const assistantMessage: ChatMessage = {
@@ -147,8 +119,8 @@ export default function App() {
       setMessages((prev) => [...prev, assistantMessage]);
       setStatus("Reasoning...");
 
-      // 3. Reasoning Phase (Puter/Vayu)
-      await generateAnswer(query, context, messages, ({ content, thought, status: assistantStatus }) => {
+      // 3. Reasoning Phase (Gemini API)
+      await generateAnswer(query, context, [...messages, userMessage], ({ content, thought, status: assistantStatus }) => {
         setMessages((prev) => 
           prev.map((msg) => {
             if (msg.id === assistantMessage.id) {
@@ -172,8 +144,9 @@ export default function App() {
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `Error: ${error.message || "Something went wrong during the search process."}`,
+        content: `### 🚀 Spark AI Pipeline Distruption\n\n**Search Phase Collision Detected:** ${error.message || "Unknown Search Error"}\n\nThe continuous reasoning engine encountered a bottleneck while gathering signals. Please check your network or try an alternative query.`,
         timestamp: Date.now(),
+        status: 'complete'
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -194,51 +167,19 @@ export default function App() {
     );
   }
 
-  if (!isAuthed) {
-    return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="glass-card flex flex-col items-center justify-center text-center p-8 sm:p-10 max-w-md w-full relative z-10"
-        >
-           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand to-brand-dark flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.5)] mb-6">
-              <Sparkles size={32} className="text-white" />
-           </div>
-           <h1 className="text-3xl font-display font-bold text-white tracking-tight mb-2">Spark AI</h1>
-           <p className="text-sm text-slate-400 leading-relaxed mb-8">
-             Advanced real-time continuous reasoning engine. Please sign in securely via your Puter.js network pass.
-           </p>
-           
-           <button 
-             onClick={handleLogin}
-             disabled={isLoggingIn}
-             className="w-full relative group overflow-hidden bg-white text-slate-900 font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] disabled:opacity-70 disabled:pointer-events-none"
-           >
-             <span className="relative z-10 flex items-center justify-center gap-2">
-                {isLoggingIn ? <Cpu className="animate-spin" size={16} /> : <User size={16} />}
-                {isLoggingIn ? "Authenticating Request..." : "Sign in to Continue"}
-             </span>
-             <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-purple-400/20 translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-500" />
-           </button>
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-[100dvh] flex flex-col w-full overflow-x-hidden">
+    <div className="min-h-[100dvh] flex flex-col w-full overflow-x-hidden selection:bg-brand/30">
       {/* Header */}
-      <header className="nav-blur px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center group">
-        <div className="flex items-center gap-3 cursor-pointer">
-          <div className="p-2 bg-gradient-to-tr from-brand to-brand-dark rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] group-hover:rotate-12 transition-transform duration-300">
+      <header className={`nav-blur px-4 sm:px-8 py-3 sm:py-4 flex justify-between items-center group transition-all duration-500 ${isScrolled ? 'scrolled shadow-2xl py-2 sm:py-3 border-white/10' : 'border-white/5'}`}>
+        <div className="flex items-center gap-3 cursor-pointer group/logo">
+          <div className="p-2 bg-gradient-to-tr from-brand via-brand-light to-brand-dark rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.3)] group-hover/logo:scale-110 group-hover/logo:rotate-3 transition-all duration-500">
             <Sparkles size={22} className="text-white" />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1">Spark AI</h1>
+            <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1 group-hover/logo:text-brand-light transition-colors">Spark AI</h1>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Network Active</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,1)] animate-pulse" />
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Live Intelligence</span>
             </div>
           </div>
         </div>
@@ -257,23 +198,12 @@ export default function App() {
             )}
           </AnimatePresence>
           <div className="flex items-center gap-2">
-            <button className="p-2 sm:p-2.5 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-white border border-transparent hover:border-white/10">
+            <button className="p-2 sm:p-2.5 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-white border border-transparent hover:border-white/10" title="History">
               <History size={18} className="sm:w-5 sm:h-5" />
             </button>
             <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
-            <button 
-              onClick={handleLogout}
-              className="hidden sm:flex items-center gap-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-400/20 px-3 py-2"
-              title="Sign Out"
-            >
-              <span className="text-xs font-bold whitespace-nowrap max-w-[100px] truncate">{user?.username || "Puter User"}</span>
-              <LogOut size={16} />
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="sm:hidden p-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400"
-            >
-              <LogOut size={18} />
+            <button className="p-2 sm:p-2.5 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-white border border-transparent hover:border-white/10" title="Profile">
+              <User size={18} className="sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -296,23 +226,31 @@ export default function App() {
               </div>
               
               <div className="w-full relative z-20">
-                 <ChatInput onSend={handleSend} isLoading={isLoading} isHome={true} />
+                 <ChatInput 
+              onSend={handleSend} 
+              isLoading={isLoading} 
+              isHome={true} 
+              isDeepMode={isDeepMode}
+              setIsDeepMode={setIsDeepMode}
+              isAuthed={isAuthed}
+              onLogin={handleLogin}
+            />
               </div>
 
               {/* Perplexity style suggestions below the search box */}
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 w-full max-w-2xl">
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 w-full max-w-3xl">
                  {[
-                   { label: 'Future of Nuclear Fusion', icon: Sparkles },
-                   { label: 'James Webb Space Discovery', icon: SearchIcon },
-                   { label: 'History of Renaissance Art', icon: Cpu },
-                   { label: 'Benefits of Deep Learning', icon: History }
+                   { label: 'Latest AI Breakthroughs', icon: Sparkles },
+                   { label: 'Market Trends 2026', icon: SearchIcon },
+                   { label: 'Geopolitical Updates', icon: Cpu },
+                   { label: 'Physics Discoveries', icon: History }
                  ].map(({ label, icon: Icon }) => (
                    <button 
                      key={label}
                      onClick={() => handleSend(label)}
-                     className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-brand/30 rounded-full py-2 px-4 transition-all text-slate-300 text-xs sm:text-sm"
+                     className="flex items-center gap-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-brand/40 rounded-full py-2.5 px-5 transition-all duration-300 text-slate-300 text-xs sm:text-sm shadow-lg hover:shadow-brand/10 hover:-translate-y-0.5 group"
                    >
-                     <Icon size={14} className="text-slate-500" />
+                     <Icon size={14} className="text-slate-500 group-hover:text-brand transition-colors" />
                      {label}
                    </button>
                  ))}
@@ -345,7 +283,17 @@ export default function App() {
       </AnimatePresence>
 
       {/* Fixed Output Input */}
-      {messages.length > 0 && <ChatInput onSend={handleSend} isLoading={isLoading} isHome={false} />}
+      {messages.length > 0 && (
+        <ChatInput 
+          onSend={handleSend} 
+          isLoading={isLoading} 
+          isHome={false} 
+          isDeepMode={isDeepMode}
+          setIsDeepMode={setIsDeepMode}
+          isAuthed={isAuthed}
+          onLogin={handleLogin}
+        />
+      )}
     </div>
   );
 }
