@@ -7,7 +7,7 @@ import { ChatMessage } from '../types';
 export async function generateAnswer(
   query: string, 
   context: string, 
-  history: ChatMessage[],
+  _history: ChatMessage[],
   onUpdate: (data: { content?: string; thought?: string; status?: 'thinking' | 'writing' | 'complete' }) => void
 ) {
   try {
@@ -45,18 +45,18 @@ export async function generateAnswer(
     dossier += `*This report is a deterministic synthesis derived directly from multiple high-fidelity intelligence indices.*\n\n`;
 
     dossier += `### 1. Executive Intelligence Summary\n`;
-    dossier += `The query "${query}" spans multiple informational domains. Primary data clusters identify high saturation in ${reference.length > 0 ? reference[0].title : 'archival records'}. Analysis of the retrieved ${facts.length} vectors follows.\n\n`;
+    dossier += `The query "${query}" spans multiple informational domains. Analysis of the retrieved ${facts.length} vectors follows.\n\n`;
 
     if (archival.length > 0) {
       dossier += `### 2. Historical & Archival Context\n`;
       archival.slice(0, 3).forEach(f => {
-        dossier += `#### ${f.title}\n${f.data}\n\n`;
+        dossier += `#### ${f.title}\n${f.data.slice(0, 800)}...\n\n`;
       });
     }
 
     dossier += `### 3. Core Reference Intelligence\n`;
     reference.slice(0, 5).forEach(f => {
-      dossier += `#### ${f.title} (Verified Reference)\n${f.data}\n\n`;
+      dossier += `#### ${f.title} (Verified Reference)\n${f.data.slice(0, 800)}...\n\n`;
     });
 
     dossier += `### 4. Technical Analysis & Data Points\n`;

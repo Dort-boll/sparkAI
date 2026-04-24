@@ -18,7 +18,7 @@ function expandQuery(q: string) {
   ];
 }
 
-// Optimized Wikipedia engine: Unified search + extracts + images in one request
+// Optimized search engine: Unified search + extracts + images in one request
 async function searchWikipedia(query: string, limit: number = 8): Promise<{ results: SearchResult[], summary: string | null, media: MediaResult[] }> {
   try {
     const wikiRes = await axios.get(WIKI_API, {
@@ -36,7 +36,7 @@ async function searchWikipedia(query: string, limit: number = 8): Promise<{ resu
         format: 'json',
         origin: '*',
       },
-      timeout: 5000 // Strict 5s timeout
+      timeout: 8000
     });
 
     const pages = wikiRes.data.query?.pages || {};
@@ -45,7 +45,6 @@ async function searchWikipedia(query: string, limit: number = 8): Promise<{ resu
     let summary: string | null = null;
 
     Object.values(pages).forEach((page: any, index) => {
-      // First page extract is our primary summary
       if (index === 0 && page.extract) {
         summary = page.extract.trim();
       }
@@ -61,7 +60,7 @@ async function searchWikipedia(query: string, limit: number = 8): Promise<{ resu
           title: page.title,
           snippet: cleanExtract.slice(0, 5000).replace(/\n/g, ' '),
           url: page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-          source: 'Reference',
+          source: 'Verified Intelligence',
           category: 'Reference' as const
         });
       }
@@ -78,12 +77,13 @@ async function searchWikipedia(query: string, limit: number = 8): Promise<{ resu
 
     return { results, summary, media };
   } catch (error) {
-    console.error('Wikipedia search error:', error);
+    console.error('Core search error:', error);
     return { results: [], summary: null, media: [] };
   }
 }
 
-// Internet Archive search engine removed per user constraint
+// Internet Archive search removed per user constraint
+
 function deduplicateAndRank(results: SearchResult[], query: string, settings?: RAGSettings): SearchResult[] {
   const seen = new Set<string>();
   const filtered = results.filter(r => {
@@ -103,8 +103,8 @@ function deduplicateAndRank(results: SearchResult[], query: string, settings?: R
       if (r.title.toLowerCase().includes(term)) score += 20;
     });
 
-    // Authority boosts for Wikipedia
-    if (r.source === 'Verifed Intelligence') score += 20;
+    // Authority boosts for sources
+    if (r.source === 'Verified Intelligence') score += 20;
     
     // Penalize fragmented data
     if (r.snippet.length < 50) score -= 40;
@@ -135,34 +135,28 @@ export async function SparkAI_Search(
   ragSettings?: RAGSettings
 ) {
   if (onStage) {
-    onStage(`Gathering Verified Intelligence from Knowledge Base...`);
+    onStage(isDeepMode 
+      ? `Conducting Deep Multi-Dataset Archival Research...` 
+      : `Gathering Reference Intelligence...`);
   }
 
   try {
-    // Stage 1: Get structured search results from our backend (Wiki Only)
-    const response = await axios.get('/api/search', {
-      params: { q: query }
-    });
-    
-    let sources: SearchResult[] = response.data;
-    
-    // Additional depth for Deep Mode using Wiki sub-queries
+    // Stage 1: Core research from Wikipedia
+    const { results, summary, media } = await searchWikipedia(query, isDeepMode ? 15 : 8);
+    let sources: SearchResult[] = results;
+
+    // Additional depth for Deep Mode using sub-queries
     if (isDeepMode) {
       if (onStage) onStage(`Expanding Technical Coverage via Research Indices...`);
       const depthQueries = expandQuery(query);
-      const depthRes = await axios.get('/api/search', {
-        params: { q: depthQueries[2] } // Technical query
-      });
-      sources = [...sources, ...depthRes.data];
+      const [techRes, histRes] = await Promise.all([
+        searchWikipedia(depthQueries[3], 5), // Technical query
+        searchWikipedia(depthQueries[1], 5)  // History query
+      ]);
+      sources = [...sources, ...techRes.results, ...histRes.results];
     }
 
-    if (onStage) onStage(`Synthesizing Media & Summary...`);
-
-    // Stage 2: Fetch Media and Summary in parallel from Wiki
-    const [summaryRes, mediaRes] = await Promise.all([
-      axios.get('/api/summary', { params: { q: query } }),
-      axios.get('/api/media', { params: { q: query } })
-    ]);
+    if (onStage) onStage(`Synthesizing Media Intelligence...`);
 
     const processedCustom: SearchResult[] = customSources.map(cs => ({
       title: cs.type === 'url' ? cs.value : 'User Context',
@@ -178,13 +172,12 @@ export async function SparkAI_Search(
     return {
       sources: ranked,
       context: buildContext(ranked),
-      summary: summaryRes.data.extract || (ranked[0]?.snippet || null),
-      media: mediaRes.data,
+      summary: summary || (ranked[0]?.snippet || null),
+      media: media,
       queries: expandQuery(query)
     };
   } catch (error) {
     console.error("Advanced Search Engine Error:", error);
-    // Fallback to local search if backend fails
     const { results, summary, media } = await searchWikipedia(query, 10);
     return {
       sources: results,
