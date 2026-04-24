@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage, SearchResult, CustomSource } from './types';
+import { ChatMessage, SearchResult, CustomSource, RAGSettings } from './types';
 import { SparkAI_Search } from './lib/search';
 import { generateAnswer } from './lib/reasoning';
 import { ChatInput } from './components/ChatInput';
 import { MessageItem } from './components/MessageItem';
 import { SourceManager } from './components/SourceManager';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, User, LogOut } from 'lucide-react';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -14,8 +14,7 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [customSources, setCustomSources] = useState<CustomSource[]>([]);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [isReady, setIsReady] = useState(false);
-  const [isAuthed, setIsAuthed] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -44,15 +43,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    // Spark AI is always ready in this version
-    setIsReady(true);
-    setIsAuthed(true); // Bypass auth
-    setStatus(null);
-  }, []);
-
   const handleLogin = async () => {
-    // No-op or simulated login if needed
     setIsAuthed(true);
   };
 
@@ -86,7 +77,7 @@ export default function App() {
     const effectiveDeepMode = isDeepMode;
 
     try {
-      // 1. Staged Search Phase
+      // 1. Intelligence Retrieval Phase
       const { sources, context, summary, media, queries: expandedQueries } = await SparkAI_Search(
         query, 
         customSources, 
@@ -95,12 +86,10 @@ export default function App() {
       );
       
       if (!sources || sources.length === 0) {
-        throw new Error("No intelligence signals retrieved. Spark Engine needs more data or a different query.");
+        throw new Error("No intelligence signals retrieved.");
       }
-      const referenceCount = sources.filter(s => s.category === 'Reference').length;
-      const webCount = sources.filter(s => s.category === 'Web').length;
       
-      setStatus(`Refining ${referenceCount} Reference & ${webCount} Insights...`);
+      setStatus(`Refining Multi-Dataset Intelligence...`);
 
       // 2. Initialize Assistant Message
       const assistantMessage: ChatMessage = {
@@ -117,20 +106,15 @@ export default function App() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-      setStatus("Reasoning...");
 
-      // 3. Reasoning Phase (Gemini API)
+      // 3. Synthesis Phase
       await generateAnswer(query, context, [...messages, userMessage], ({ content, thought, status: assistantStatus }) => {
         setMessages((prev) => 
           prev.map((msg) => {
             if (msg.id === assistantMessage.id) {
-              const updatedThoughts = thought 
-                ? [...(msg.thoughts || []), thought] 
-                : msg.thoughts;
               return { 
                 ...msg, 
                 content: content !== undefined ? content : msg.content,
-                thoughts: updatedThoughts,
                 status: assistantStatus || msg.status
               };
             }
@@ -155,13 +139,13 @@ export default function App() {
     }
   };
 
-  if (!isReady) {
+  if (isLoading && messages.length === 0) {
     return (
        <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4">
          <Sparkles size={48} className="text-brand animate-pulse mb-6" />
          <div className="flex items-center gap-3">
            <Cpu size={18} className="text-brand animate-spin" />
-           <span className="text-sm font-bold text-slate-300 uppercase tracking-widest">{status || "Initializing..."}</span>
+           <span className="text-sm font-bold text-slate-300 uppercase tracking-widest">{status || "Initializing Intelligence..."}</span>
          </div>
        </div>
     );
@@ -179,7 +163,7 @@ export default function App() {
             <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1 group-hover/logo:text-brand-light transition-colors">Spark AI</h1>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,1)] animate-pulse" />
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Live Intelligence</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Research Terminal</span>
             </div>
           </div>
         </div>

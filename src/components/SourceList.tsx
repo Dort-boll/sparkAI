@@ -16,7 +16,7 @@ export const SourceList: React.FC<SourceListProps> = ({ sources }) => {
     if (s.includes('instagram')) return <Hash size={8} />;
     if (s.includes('youtube')) return <PlaySquare size={8} />;
     if (s.includes('official website')) return <LinkIcon size={8} />;
-    if (s.includes('wikipedia')) return <BookOpen size={8} />;
+    if (s.includes('verified') || s.includes('reference')) return <BookOpen size={8} />;
     return category === 'Reference' ? <Search size={8} /> : <Globe size={8} />;
   };
 

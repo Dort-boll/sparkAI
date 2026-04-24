@@ -4,6 +4,13 @@ export interface CustomSource {
   value: string;
 }
 
+export interface RAGSettings {
+  maxSources: number;
+  similarityThreshold: number;
+  rerankAlgorithm: 'relevance' | 'recency' | 'hybrid';
+  deepSearchIntensity: number;
+}
+
 export interface SearchResult {
   title: string;
   snippet: string;

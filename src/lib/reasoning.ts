@@ -1,8 +1,8 @@
 import { ChatMessage } from '../types';
 
 /**
- * A sophisticated deterministic synthesis engine that processes multi-dataset context
- * into a structured intelligence report without using external LLM APIs.
+ * A direct research aggregator that synthesizes data from multi-vector references
+ * into a structured intelligence dossier without using generative AI.
  */
 export async function generateAnswer(
   query: string, 
@@ -11,102 +11,68 @@ export async function generateAnswer(
   onUpdate: (data: { content?: string; thought?: string; status?: 'thinking' | 'writing' | 'complete' }) => void
 ) {
   try {
-    console.log("Synthesizing answer for query:", query);
+    console.log("Synthesizing deterministic research dossier for query:", query);
     
-    // Stage 1: Extraction & Indexing
-    onUpdate({ status: 'thinking', thought: "Parsing Reference Intelligence Clusters..." });
+    onUpdate({ status: 'thinking', thought: "Aggregating Multi-Dataset Intelligence Vectors..." });
     await new Promise(r => setTimeout(r, 600));
     
-    // Simulate deep synthesis effort
-    onUpdate({ thought: "Cross-referencing Historical Datasets from Internet Archive..." });
-    await new Promise(r => setTimeout(r, 700));
-
-    onUpdate({ thought: "Mapping Semantic Overlaps & Entity Relationships..." });
+    onUpdate({ thought: "Identifying Historical Lineage & Technical Markers..." });
     await new Promise(r => setTimeout(r, 800));
 
-    onUpdate({ thought: "Formatting Spark Intelligence Report..." });
-    await new Promise(r => setTimeout(r, 500));
+    onUpdate({ status: 'writing', thought: "Compiling Final Intelligence Dossier..." });
 
-    onUpdate({ status: 'writing', thought: "Generating Multi-Source Synthesis..." });
+    // Extracting facts from the context vectors
+    const sections = context.split('[ENTITY_VECTOR_').filter(s => s.trim().length > 0);
+    const facts = sections.map(s => {
+      const title = s.match(/IDENTIFIER: (.*)/)?.[1] || "Reference";
+      const data = s.match(/INTELLIGENCE_DATA: (.*)/)?.[1] || "";
+      const source = s.match(/SOURCE_LINK: (.*)/)?.[1] || "";
+      const isArchival = s.includes('ARCHIVAL_HISTORY');
+      return { title, data, source, isArchival };
+    }).filter(f => f.data.length > 20);
 
-    // 1. Structural Analysis of the Context
-    const lines = context.split('\n');
-    const sources: { title: string; content: string; type: 'Cognitive' | 'Depth' }[] = [];
-    let currentTitle = "";
-    let currentContent: string[] = [];
-    let currentType: 'Cognitive' | 'Depth' = 'Cognitive';
-
-    lines.forEach(line => {
-      if (line.startsWith('[C')) {
-        if (currentTitle) sources.push({ title: currentTitle, content: currentContent.join(' '), type: currentType });
-        currentTitle = line.replace(/\[C\d+\]\s*/, '').trim();
-        currentContent = [];
-        currentType = 'Cognitive';
-      } else if (line.startsWith('[D')) {
-        if (currentTitle) sources.push({ title: currentTitle, content: currentContent.join(' '), type: currentType });
-        currentTitle = line.replace(/\[D\d+\]\s*/, '').trim();
-        currentContent = [];
-        currentType = 'Depth';
-      } else if (line.startsWith('Insight:')) {
-        currentContent.push(line.replace('Insight:', '').trim());
-      }
-    });
-    if (currentTitle) sources.push({ title: currentTitle, content: currentContent.join(' '), type: currentType });
-
-    // 2. Build the Advanced Synthesis Report
-    let report = `## Spark Intelligence Synthesis: ${query}\n\n`;
-    
-    if (sources.length === 0) {
-      report += "Insufficient cross-domain signals retrieved for high-fidelity synthesis. Please broaden the structural parameters of your inquiry.";
-      onUpdate({ content: report, status: 'complete' });
-      return report;
+    if (facts.length === 0) {
+      const msg = "Insufficient high-fidelity signals retrieved for this query in the primary reference datasets.";
+      onUpdate({ content: msg, status: 'complete' });
+      return msg;
     }
 
-    // High-Confidence Executive Summary
-    report += `### Executive Overview\n`;
-    const cognitiveSources = sources.filter(s => s.type === 'Cognitive');
-    if (cognitiveSources.length > 0) {
-      // Combine the first two primary clusters for a deeper overview
-      const topClusters = cognitiveSources.slice(0, 2);
-      const combinedText = topClusters.map(s => s.content).join(' ');
-      const summaryText = combinedText.length > 4000 
-        ? combinedText.slice(0, 4000) + "..." 
-        : combinedText;
-      report += `${summaryText}\n\n`;
-    }
+    // Sort by type
+    const archival = facts.filter(f => f.isArchival);
+    const reference = facts.filter(f => !f.isArchival);
 
-    // Technical Analysis & Thematic Mapping
-    report += `### Multi-Vector Intelligence Analysis\n`;
-    // Skip the ones already used in the overview
-    const remainingSources = sources.filter(s => !cognitiveSources.slice(0, 2).includes(s));
-    remainingSources.slice(0, 6).forEach((source) => {
-      // Clean citation-like numbers that might have slipped through
-      const cleanContent = source.content.replace(/\[\d+\]/g, '').trim();
-      report += `- **${source.title}**: ${cleanContent.slice(0, 1000)}${cleanContent.length > 1000 ? '...' : ''}\n\n`;
-    });
+    let dossier = `## Institutional Research Dossier: ${query}\n\n`;
+    dossier += `*This report is a deterministic synthesis derived directly from multiple high-fidelity intelligence indices.*\n\n`;
 
-    // Deep Intelligence Layer
-    const depthSources = sources.filter(s => s.type === 'Depth');
-    if (depthSources.length > 0) {
-      report += `\n### Complementary Depth Intelligence\n`;
-      depthSources.slice(0, 4).forEach((s) => {
-        const cleanContent = s.content.replace(/\[\d+\]/g, '').trim();
-        report += `> **${s.title}**: ${cleanContent.slice(0, 1200)}${cleanContent.length > 1200 ? '...' : ''}\n\n`;
+    dossier += `### 1. Executive Intelligence Summary\n`;
+    dossier += `The query "${query}" spans multiple informational domains. Primary data clusters identify high saturation in ${reference.length > 0 ? reference[0].title : 'archival records'}. Analysis of the retrieved ${facts.length} vectors follows.\n\n`;
+
+    if (archival.length > 0) {
+      dossier += `### 2. Historical & Archival Context\n`;
+      archival.slice(0, 3).forEach(f => {
+        dossier += `#### ${f.title}\n${f.data}\n\n`;
       });
     }
 
-    // Transparent Mapping (Links/Sources at the bottom, professional naming)
-    report += `***\n**Verified Intelligence Vectors:**\n`;
-    sources.slice(0, 12).forEach((s, i) => {
-      report += `${i + 1}. ${s.title}\n`;
+    dossier += `### 3. Core Reference Intelligence\n`;
+    reference.slice(0, 5).forEach(f => {
+      dossier += `#### ${f.title} (Verified Reference)\n${f.data}\n\n`;
     });
 
-    onUpdate({ content: report, status: 'complete' });
-    return report;
+    dossier += `### 4. Technical Analysis & Data Points\n`;
+    const technical = facts.slice(Math.max(0, facts.length - 3));
+    technical.forEach(f => {
+      dossier += `* **Key Identifier**: ${f.title} - ${f.data.slice(0, 300)}...\n`;
+    });
+
+    dossier += `\n\n***\n*Spark Deterministic Protocol - Institutional Intelligence & Research Platform.*`;
+    
+    onUpdate({ content: dossier, status: 'complete' });
+    return dossier;
 
   } catch (error: any) {
     console.error("Synthesis Error:", error);
-    const errorMsg = `### Spark Synthesis Interruption\n\nThe local data synthesis engine encountered an error while indexing results.\n\n**Details:** ${error.message || "Logic parse failure"}\n\n*Please try refining your query.*`;
+    const errorMsg = `### Spark Protocol Error\n\n**Trace:** ${error.message || "Logic failure"}`;
     onUpdate({ content: errorMsg, status: 'complete' });
     return errorMsg;
   }

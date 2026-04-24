@@ -69,7 +69,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   ? 'bg-brand/20 text-brand shadow-[0_0_15px_rgba(59,130,246,0.3)] border border-brand/30' 
                   : 'text-slate-500 hover:text-slate-300 hover:bg-white/5 border border-transparent'
               }`}
-              title={isDeepMode ? "Deep Mode Active (Puter Search)" : "Standard Mode (Wikipedia)"}
+              title={isDeepMode ? "Deep Mode Active (Comprehensive Scan)" : "Standard Mode (Rapid Insights)"}
             >
               <Sparkles size={18} className={isDeepMode ? 'animate-pulse' : ''} />
             </button>
