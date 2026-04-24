@@ -203,7 +203,8 @@ export function buildContext(results: SearchResult[]) {
 export async function SparkAI_Search(
   query: string, 
   customSources: CustomSource[] = [],
-  onStage?: (stage: string) => void
+  onStage?: (stage: string) => void,
+  isGuest: boolean = false
 ) {
   const normalized = normalizeQuery(query);
   const summaryPromise = getSummary(normalized);
@@ -212,8 +213,14 @@ export async function SparkAI_Search(
   if (onStage) onStage(`Indexing Reference Intelligence for '${query}'...`);
   const wikiResults = await searchWikipedia(normalized);
   
-  if (onStage) onStage(`Expanding search via Puter Web for '${query}'...`);
-  const webResults = await puterSearch(normalized);
+  let webResults: SearchResult[] = [];
+  if (!isGuest) {
+    if (onStage) onStage(`Expanding search via Puter Web for '${query}'...`);
+    webResults = await puterSearch(normalized);
+  } else {
+    // In guest mode, we skip general web search
+    if (onStage) onStage(`Guest Mode: Accessing reference knowledge for '${query}'...`);
+  }
 
   const queries = expandQuery(normalized);
   const expansionResults = await searchWikipedia(queries[1]);

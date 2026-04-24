@@ -5,7 +5,7 @@ import { generateAnswer } from './lib/reasoning';
 import { ChatInput } from './components/ChatInput';
 import { MessageItem } from './components/MessageItem';
 import { SourceManager } from './components/SourceManager';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, User, LogOut } from 'lucide-react';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, User, LogOut, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -16,6 +16,7 @@ export default function App() {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
@@ -81,25 +82,45 @@ export default function App() {
     }
   };
 
+  const handleGuestLogin = () => {
+    setIsGuest(true);
+    setIsAuthed(true);
+    setUser({ username: "Guest User", isGuest: true });
+    // Reset messages when switching to guest mode to ensure Wikipedia-only context
+    setMessages([]);
+  };
+
   const handleLogout = async () => {
+    if (isGuest) {
+      setIsAuthed(false);
+      setIsGuest(false);
+      setUser(null);
+      setMessages([]); // Clear guest messages on logout
+      return;
+    }
     const puter = (window as any).puter;
     if (!puter) return;
     try {
       await puter.auth.signOut();
       setIsAuthed(false);
+      setIsGuest(false);
       setUser(null);
+      setMessages([]);
     } catch (e) {
       console.error("Sign out failed", e);
     }
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   };
 
   useEffect(() => {
-    if (isAtBottom) {
-      scrollToBottom('auto');
+    if (isAtBottom && messages.length > 0) {
+      const timeout = setTimeout(() => {
+        scrollToBottom('smooth');
+      }, 100);
+      return () => clearTimeout(timeout);
     }
   }, [messages, status]);
 
@@ -123,7 +144,7 @@ export default function App() {
       // 1. Staged Search Phase
       const { sources, context, summary, media, queries: expandedQueries } = await SparkAI_Search(query, customSources, (stage) => {
         setStatus(stage);
-      });
+      }, isGuest);
       
       const referenceCount = sources.filter(s => s.category === 'Reference').length;
       const webCount = sources.filter(s => s.category === 'Web').length;
@@ -165,7 +186,7 @@ export default function App() {
             return msg;
           })
         );
-      });
+      }, isGuest);
 
     } catch (error: any) {
       console.error("Spark AI Pipeline Error:", error);
@@ -210,17 +231,31 @@ export default function App() {
              Advanced real-time continuous reasoning engine. Please sign in securely via your Puter.js network pass.
            </p>
            
-           <button 
-             onClick={handleLogin}
-             disabled={isLoggingIn}
-             className="w-full relative group overflow-hidden bg-white text-slate-900 font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] disabled:opacity-70 disabled:pointer-events-none"
-           >
-             <span className="relative z-10 flex items-center justify-center gap-2">
-                {isLoggingIn ? <Cpu className="animate-spin" size={16} /> : <User size={16} />}
-                {isLoggingIn ? "Authenticating Request..." : "Sign in to Continue"}
-             </span>
-             <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-purple-400/20 translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-500" />
-           </button>
+           <div className="flex flex-col gap-3 w-full">
+             <button 
+               onClick={handleLogin}
+               disabled={isLoggingIn}
+               className="w-full relative group overflow-hidden bg-white text-slate-900 font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] disabled:opacity-70 disabled:pointer-events-none"
+             >
+               <span className="relative z-10 flex items-center justify-center gap-2">
+                  {isLoggingIn ? <Cpu className="animate-spin" size={16} /> : <User size={16} />}
+                  {isLoggingIn ? "Authenticating Request..." : "Sign in to Continue"}
+               </span>
+               <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-purple-400/20 translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-500" />
+             </button>
+
+             <button 
+               onClick={handleGuestLogin}
+               disabled={isLoggingIn}
+               className="w-full relative group overflow-hidden bg-white/5 border border-white/10 text-white font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] hover:bg-white/10 hover:border-brand/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] disabled:opacity-70 disabled:pointer-events-none"
+             >
+               <span className="relative z-10 flex items-center justify-center gap-2">
+                  <SearchIcon size={16} className="text-brand-light group-hover:scale-110 transition-transform" />
+                  Continue as Guest
+               </span>
+               <div className="absolute inset-0 bg-gradient-to-r from-brand/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+             </button>
+           </div>
         </motion.div>
       </div>
     );
@@ -238,11 +273,17 @@ export default function App() {
             <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1">Spark AI</h1>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Network Active</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isGuest ? "Guest Access" : "Network Active"}</span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3 sm:gap-5">
+          {isGuest && (
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-[10px] font-bold text-amber-500 uppercase tracking-wider">
+              <Layers size={12} />
+              Guest Mode
+            </div>
+          )}
           <AnimatePresence>
             {status && (
               <motion.div 

@@ -4,7 +4,8 @@ export async function generateAnswer(
   query: string, 
   context: string, 
   history: ChatMessage[],
-  onUpdate: (data: { content?: string; thought?: string; status?: 'thinking' | 'writing' | 'complete' }) => void
+  onUpdate: (data: { content?: string; thought?: string; status?: 'thinking' | 'writing' | 'complete' }) => void,
+  isGuest: boolean = false
 ) {
   const puter = (window as any).puter;
   if (!puter) {
@@ -16,7 +17,7 @@ export async function generateAnswer(
     onUpdate({ status: 'thinking', thought: "Synthesizing Phase 1: Reference Data & User Context..." });
     await new Promise(r => setTimeout(r, 800));
     
-    onUpdate({ thought: "Synthesizing Phase 2: Supplemental Web Intelligence..." });
+    onUpdate({ thought: isGuest ? "Filtering reference knowledge extracts..." : "Synthesizing Phase 2: Supplemental Web Intelligence..." });
     await new Promise(r => setTimeout(r, 800));
 
     onUpdate({ thought: "Indexing authority-ranked content line by line..." });
@@ -30,6 +31,8 @@ export async function generateAnswer(
     const systemPrompt = `
 You are Spark AI, an advanced real-time reasoning engine. 
 CURRENT SYSTEM DATE AND TIME: ${new Date().toISOString()}
+
+${isGuest ? 'GUEST MODE ACTIVE: You MUST ONLY use information provided from the standard reference sources. Do not use outside knowledge. Your response should strictly mirror the reference intelligence provided. If information is not in the context, state that it is not available in the public records.' : ''}
 
 Your exact goal is to examine the newest provided context and provide perfectly accurate, deeply formatted answers. 
 YOU MUST explicitly bias towards the absolute newest and latest updates available in the context when asked about recent events. Focus exactly on data mapped to the current date and time above.
