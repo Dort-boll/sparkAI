@@ -1,79 +1,82 @@
 import { ChatMessage } from '../types';
 
-/**
- * A direct research aggregator that synthesizes data from multi-vector references
- * into a structured intelligence dossier without using generative AI.
- */
 export async function generateAnswer(
   query: string, 
   context: string, 
-  _history: ChatMessage[],
+  history: ChatMessage[],
   onUpdate: (data: { content?: string; thought?: string; status?: 'thinking' | 'writing' | 'complete' }) => void
 ) {
+  const puter = (window as any).puter;
+  if (!puter) {
+    return "Initializing Vayu AGI Reasoning Engine...";
+  }
+
   try {
-    console.log("Synthesizing deterministic research dossier for query:", query);
+    // Stage 1: Reading & indexing sources
+    onUpdate({ status: 'thinking', thought: "Synthesizing Phase 1: Reference Data & User Context..." });
+    await new Promise(r => setTimeout(r, 800));
     
-    onUpdate({ status: 'thinking', thought: "Aggregating Multi-Dataset Intelligence Vectors..." });
-    await new Promise(r => setTimeout(r, 600));
-    
-    onUpdate({ thought: "Identifying Historical Lineage & Technical Markers..." });
+    onUpdate({ thought: "Synthesizing Phase 2: Supplemental Web Intelligence..." });
     await new Promise(r => setTimeout(r, 800));
 
-    onUpdate({ status: 'writing', thought: "Compiling Final Intelligence Dossier..." });
+    onUpdate({ thought: "Indexing authority-ranked content line by line..." });
+    await new Promise(r => setTimeout(r, 1000));
 
-    // Extracting facts from the context vectors
-    const sections = context.split('[ENTITY_VECTOR_').filter(s => s.trim().length > 0);
-    const facts = sections.map(s => {
-      const title = s.match(/IDENTIFIER: (.*)/)?.[1] || "Reference";
-      const data = s.match(/INTELLIGENCE_DATA: (.*)/)?.[1] || "";
-      const source = s.match(/SOURCE_LINK: (.*)/)?.[1] || "";
-      const isArchival = s.includes('ARCHIVAL_HISTORY');
-      return { title, data, source, isArchival };
-    }).filter(f => f.data.length > 20);
+    onUpdate({ thought: "Identifying thematic clusters and cross-references..." });
+    await new Promise(r => setTimeout(r, 800));
 
-    if (facts.length === 0) {
-      const msg = "Insufficient high-fidelity signals retrieved for this query in the primary reference datasets.";
-      onUpdate({ content: msg, status: 'complete' });
-      return msg;
-    }
+    onUpdate({ status: 'writing', thought: "Structuring verified reasoning path..." });
 
-    // Sort by type
-    const archival = facts.filter(f => f.isArchival);
-    const reference = facts.filter(f => !f.isArchival);
+    const systemPrompt = `
+You are Spark AI, an advanced real-time reasoning engine. 
+CURRENT SYSTEM DATE AND TIME: ${new Date().toISOString()}
 
-    let dossier = `## Institutional Research Dossier: ${query}\n\n`;
-    dossier += `*This report is a deterministic synthesis derived directly from multiple high-fidelity intelligence indices.*\n\n`;
+Your exact goal is to examine the newest provided context and provide perfectly accurate, deeply formatted answers. 
+YOU MUST explicitly bias towards the absolute newest and latest updates available in the context when asked about recent events. Focus exactly on data mapped to the current date and time above.
 
-    dossier += `### 1. Executive Intelligence Summary\n`;
-    dossier += `The query "${query}" spans multiple informational domains. Analysis of the retrieved ${facts.length} vectors follows.\n\n`;
+REASONING PROTOCOL:
+1. DATA PRIORITIZATION & RECENCY: ALWAYS extract and prioritize the "Latest Update" or "News" chunks from the context if the user asks for new, latest, or current data.
+2. CONTEXTUAL AWARENESS: You are engaged in a multi-turn conversation. Understand the context of previous queries and answers to provide highly accurate and relevant follow-ups.
+3. GRANULAR INDEXING: Treat the context as a library of facts. Synthesize them into a logical, highly accurate narrative.
+4. EXHAUSTIVE ELABORATION: Your generated response MUST be incredibly detailed. Provide textbook-level depth, immense elaboration, historical context, technical specifics, and comprehensive coverage.
+5. CITATION INTEGRITY: Every substantive claim must be followed by a bracketed source tag [1], [2].
 
-    if (archival.length > 0) {
-      dossier += `### 2. Historical & Archival Context\n`;
-      archival.slice(0, 3).forEach(f => {
-        dossier += `#### ${f.title}\n${f.data.slice(0, 800)}...\n\n`;
-      });
-    }
+STRUCTURE:
+1. Start with a direct answer based on the absolute freshest data available.
+2. Use headings (###) for detailed sections.
+3. Use bullet points to beautifully organize raw intelligence.
+4. Cite sources using [1], [2], etc.
 
-    dossier += `### 3. Core Reference Intelligence\n`;
-    reference.slice(0, 5).forEach(f => {
-      dossier += `#### ${f.title} (Verified Reference)\n${f.data.slice(0, 800)}...\n\n`;
+RULES:
+- Be remarkably smooth, professional, factual, and strictly objective.
+- If info is missing, state it clearly. Do not hallucinate.
+- Use bolding for precise emphasis.
+- Output strictly in beautifully formatted Markdown.
+`;
+
+    const mappedHistory = history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    }));
+
+    const res = await puter.ai.chat({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...mappedHistory,
+        {
+          role: "user",
+          content: `Question: ${query}\n\nLATEST FRESH CONTEXT TO USE:\n${context}`
+        }
+      ]
     });
 
-    dossier += `### 4. Technical Analysis & Data Points\n`;
-    const technical = facts.slice(Math.max(0, facts.length - 3));
-    technical.forEach(f => {
-      dossier += `* **Key Identifier**: ${f.title} - ${f.data.slice(0, 300)}...\n`;
-    });
-
-    dossier += `\n\n***\n*Spark Deterministic Protocol - Institutional Intelligence & Research Platform.*`;
-    
-    onUpdate({ content: dossier, status: 'complete' });
-    return dossier;
-
-  } catch (error: any) {
-    console.error("Synthesis Error:", error);
-    const errorMsg = `### Spark Protocol Error\n\n**Trace:** ${error.message || "Logic failure"}`;
-    onUpdate({ content: errorMsg, status: 'complete' });
-    return errorMsg;
+    const content = res?.message?.content || "I couldn't synthesize a response.";
+    onUpdate({ content, status: 'complete' });
+    return content;
+  } catch (error) {
+    console.error("Reasoning Error:", error);
+    onUpdate({ content: "Internal reasoning failure.", status: 'complete' });
+    return "Internal reasoning failure.";
   }
 }

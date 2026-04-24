@@ -16,18 +16,13 @@ export const SourceList: React.FC<SourceListProps> = ({ sources }) => {
     if (s.includes('instagram')) return <Hash size={8} />;
     if (s.includes('youtube')) return <PlaySquare size={8} />;
     if (s.includes('official website')) return <LinkIcon size={8} />;
-    if (s.includes('verified') || s.includes('reference')) return <BookOpen size={8} />;
+    if (s.includes('wikipedia')) return <BookOpen size={8} />;
     return category === 'Reference' ? <Search size={8} /> : <Globe size={8} />;
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-1">
-         <Layers size={14} className="text-slate-600" />
-         Sources
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {sources.map((source, idx) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {sources.map((source, idx) => (
           <motion.a
             key={idx}
             href={source.url}
@@ -51,8 +46,7 @@ export const SourceList: React.FC<SourceListProps> = ({ sources }) => {
               <span className="text-[9px] font-medium text-slate-500 truncate">{source.source}</span>
             </div>
           </motion.a>
-        ))}
-      </div>
+      ))}
     </div>
   );
 };

@@ -5,21 +5,9 @@ interface ChatInputProps {
   onSend: (query: string) => void;
   isLoading: boolean;
   isHome?: boolean;
-  isDeepMode: boolean;
-  setIsDeepMode: (val: boolean) => void;
-  isAuthed: boolean;
-  onLogin: () => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ 
-  onSend, 
-  isLoading, 
-  isHome, 
-  isDeepMode, 
-  setIsDeepMode,
-  isAuthed,
-  onLogin
-}) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome }) => {
   const [query, setQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -29,11 +17,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       onSend(query.trim());
       setQuery('');
     }
-  };
-
-  const handleToggleDeepMode = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDeepMode(!isDeepMode);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -60,19 +43,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onSubmit={handleSubmit}
           className="glass-card !bg-[#0f172a]/90 !p-1.5 sm:!p-2 flex items-end gap-2 shadow-xl relative w-full !rounded-[32px] border border-white/5"
         >
-          <div className="flex-1 relative pl-3 sm:pl-4 flex items-end gap-2">
-            <button
-              onClick={handleToggleDeepMode}
-              type="button"
-              className={`mb-2.5 p-2 rounded-xl transition-all duration-300 ${
-                isDeepMode 
-                  ? 'bg-brand/20 text-brand shadow-[0_0_15px_rgba(59,130,246,0.3)] border border-brand/30' 
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/5 border border-transparent'
-              }`}
-              title={isDeepMode ? "Deep Mode Active (Comprehensive Scan)" : "Standard Mode (Rapid Insights)"}
-            >
-              <Sparkles size={18} className={isDeepMode ? 'animate-pulse' : ''} />
-            </button>
+          <div className="flex-1 relative pl-3 sm:pl-4">
             <textarea
               ref={textareaRef}
               rows={1}

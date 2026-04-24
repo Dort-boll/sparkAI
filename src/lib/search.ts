@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchResult, CustomSource, MediaResult, RAGSettings } from '../types';
+import { SearchResult, CustomSource, MediaResult } from '../types';
 
 const WIKI_API = 'https://en.wikipedia.org/w/api.php';
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
@@ -12,179 +12,230 @@ function normalizeQuery(q: string) {
 function expandQuery(q: string) {
   return [
     q,
-    `${q} history timeline origins`,
-    `${q} latest news updates 2024 2025`,
-    `${q} technical specifications and detailed working`
+    `${q} explanation`,
+    `${q} latest updates`,
+    `${q} detailed analysis`
   ];
 }
 
-// Optimized search engine: Unified search + extracts + images in one request
-async function searchWikipedia(query: string, limit: number = 8): Promise<{ results: SearchResult[], summary: string | null, media: MediaResult[] }> {
+// Re-implementing the robust search logic from server.ts for client-side execution
+async function searchWikipedia(query: string): Promise<SearchResult[]> {
+  try {
+    const wikiRes = await axios.get(WIKI_API, {
+      params: {
+        action: 'query',
+        list: 'search',
+        srsearch: query,
+        format: 'json',
+        origin: '*',
+        srlimit: 5
+      }
+    });
+
+    const searchItems = wikiRes.data.query?.search || [];
+    const results = await Promise.all(searchItems.map(async (item: any) => {
+      const infoboxLinks: SearchResult[] = [];
+      
+      // Try Wikidata for Infobox links (CORS supported)
+      try {
+        const propsRes = await axios.get(WIKI_API, {
+          params: { action: 'query', prop: 'pageprops', titles: item.title, format: 'json', origin: '*' }
+        });
+        const pages = propsRes.data.query?.pages;
+        if (pages) {
+          const pageId = Object.keys(pages)[0];
+          const wikibaseItem = pages[pageId]?.pageprops?.wikibase_item;
+          if (wikibaseItem) {
+            const wdRes = await axios.get(WIKIDATA_API, {
+              params: { action: 'wbgetclaims', entity: wikibaseItem, format: 'json', origin: '*' }
+            });
+            const claims = wdRes.data.claims || {};
+            
+            const extractClaim = (prop: string, formatter: (val: string) => string) => {
+               const val = claims[prop]?.[0]?.mainsnak?.datavalue?.value;
+               if (typeof val === 'string') return formatter(val);
+               if (val?.id) return formatter(val.id);
+               return null;
+            };
+
+            const website = extractClaim('P856', (v) => v);
+            if (website) infoboxLinks.push({ title: `${item.title} Official Website`, url: website, source: 'Official Website', category: 'Reference', snippet: 'Official presence.' });
+
+            const twitter = extractClaim('P2002', (v) => `https://twitter.com/${v}`);
+            if (twitter) infoboxLinks.push({ title: `${item.title} on X (Twitter)`, url: twitter, source: 'Twitter Profile', category: 'Reference', snippet: 'Social media presence.' });
+          }
+        }
+      } catch (e) {}
+
+      let snippet = item.snippet.replace(/<[^>]*>?/gm, '');
+      try {
+        const detailRes = await axios.get(`${WIKI_REST}/page/summary/${encodeURIComponent(item.title)}`);
+        snippet = detailRes.data.extract || snippet;
+      } catch {}
+
+      return [
+        {
+          title: item.title,
+          snippet: snippet,
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
+          source: 'Wikipedia',
+          category: 'Reference' as const
+        },
+        ...infoboxLinks
+      ];
+    }));
+
+    return results.flat();
+  } catch (error) {
+    console.error('Wikipedia search error:', error);
+    return [];
+  }
+}
+
+async function getSummary(query: string): Promise<string | null> {
+  try {
+    const searchRes = await axios.get(WIKI_API, {
+      params: { action: 'query', list: 'search', srsearch: query, format: 'json', origin: '*', srlimit: 1 }
+    });
+    const firstResult = searchRes.data.query?.search?.[0];
+    if (firstResult) {
+      const detailRes = await axios.get(WIKI_API, {
+        params: { action: 'query', prop: 'extracts', explaintext: 1, titles: firstResult.title, format: 'json', origin: '*' }
+      });
+      const pages = detailRes.data.query?.pages;
+      if (pages) {
+        const pageId = Object.keys(pages)[0];
+        let extract = pages[pageId]?.extract;
+        if (extract) return extract.replace(/[=*\\]/g, '').trim();
+      }
+    }
+  } catch (error) {}
+  return null;
+}
+
+async function getMedia(query: string): Promise<MediaResult[]> {
   try {
     const wikiRes = await axios.get(WIKI_API, {
       params: {
         action: 'query',
         generator: 'search',
         gsrsearch: query,
-        gsrlimit: limit || 15,
-        prop: 'extracts|pageimages|info',
-        explaintext: 1,
-        exchars: 5000,
+        gsrlimit: 10,
+        prop: 'pageimages',
         piprop: 'thumbnail',
         pithumbsize: 600,
-        inprop: 'url',
         format: 'json',
-        origin: '*',
-      },
-      timeout: 8000
+        origin: '*'
+      }
     });
 
     const pages = wikiRes.data.query?.pages || {};
-    const results: SearchResult[] = [];
-    const media: MediaResult[] = [];
-    let summary: string | null = null;
-
-    Object.values(pages).forEach((page: any, index) => {
-      if (index === 0 && page.extract) {
-        summary = page.extract.trim();
-      }
-
-      if (page.extract || page.title) {
-        const cleanExtract = (page.extract || "")
-          .replace(/<[^>]*>?/gm, '')
-          .replace(/\[\d+\]/g, '')
-          .replace(/\[[a-zA-Z]\]/g, '')
-          .trim();
-
-        results.push({
-          title: page.title,
-          snippet: cleanExtract.slice(0, 5000).replace(/\n/g, ' '),
-          url: page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-          source: 'Verified Intelligence',
-          category: 'Reference' as const
-        });
-      }
-
-      if (page.thumbnail?.source) {
-        media.push({
-          type: 'image',
-          url: page.thumbnail.source,
-          thumbnail: page.thumbnail.source,
-          source: `Verified Source: ${page.title}`
-        });
-      }
-    });
-
-    return { results, summary, media };
+    return Object.values(pages)
+      .filter((page: any) => page.thumbnail?.source)
+      .map((page: any) => ({
+        type: 'image',
+        url: page.thumbnail.source,
+        thumbnail: page.thumbnail.source,
+        source: `Wikipedia: ${page.title}`
+      }));
   } catch (error) {
-    console.error('Core search error:', error);
-    return { results: [], summary: null, media: [] };
+    return [];
   }
 }
 
-// Internet Archive search removed per user constraint
-
-function deduplicateAndRank(results: SearchResult[], query: string, settings?: RAGSettings): SearchResult[] {
-  const seen = new Set<string>();
-  const filtered = results.filter(r => {
-    if (!r.url || seen.has(r.url)) return false;
-    seen.add(r.url);
-    return true;
-  });
-
-  const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+async function puterSearch(query: string): Promise<SearchResult[]> {
+  const puter = (window as any).puter;
+  if (!puter || !puter.browser?.search) return [];
   
-  return filtered.map(r => {
-    let score = 0;
-    const text = (r.title + ' ' + r.snippet).toLowerCase();
-    
-    queryTerms.forEach(term => {
-      if (text.includes(term)) score += 10;
-      if (r.title.toLowerCase().includes(term)) score += 20;
-    });
-
-    // Authority boosts for sources
-    if (r.source === 'Verified Intelligence') score += 20;
-    
-    // Penalize fragmented data
-    if (r.snippet.length < 50) score -= 40;
-
-    return { ...r, score };
-  })
-  .sort((a, b) => b.score - a.score)
-  .slice(0, settings?.maxSources || 15);
+  try {
+    const results = await puter.browser.search(query);
+    return (results || []).map((r: any) => ({
+      title: r.title,
+      snippet: r.snippet || r.description || "Detailed web content retrieved for analysis.",
+      url: r.url || r.link,
+      source: 'Puter Web',
+      category: 'Web' as const
+    }));
+  } catch (error) {
+    console.error('Puter Search error:', error);
+    return [];
+  }
 }
 
-function buildContext(results: SearchResult[]): string {
-  let context = "=== SPARK AI VERIFIED DATASET ===\n\n";
-  results.forEach((res, i) => {
-    context += `[ENTITY_VECTOR_${i + 1}]\n`;
-    context += `CLASSIFICATION: CURRENT_REFERENCE\n`;
-    context += `IDENTIFIER: ${res.title}\n`;
-    context += `SOURCE_LINK: ${res.url}\n`;
-    context += `INTELLIGENCE_DATA: ${res.snippet}\n\n`;
+function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
+  const seen = new Set();
+  return results
+    .filter(r => {
+      if (!r.url || seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    })
+    .map(r => {
+      let score = 0;
+      if (r.url.includes("wikipedia")) score += 20;
+      if (r.url.includes(".edu")) score += 15;
+      if (r.url.includes(".gov")) score += 18;
+      if (r.url.includes("github")) score += 10;
+      if (r.snippet?.length > 120) score += 5;
+      return { ...r, score };
+    })
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, 15);
+}
+
+export function buildContext(results: SearchResult[]) {
+  const reference = results.filter(r => r.category === 'Reference');
+  const web = results.filter(r => r.category === 'Web' || !r.category);
+
+  let context = "--- PRIMARY REFERENCE SOURCES ---\n";
+  reference.forEach((r, i) => {
+    context += `[Source ${i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
   });
+
+  context += "\n--- SUPPLEMENTAL WEB INTELLIGENCE ---\n";
+  web.forEach((r, i) => {
+    context += `[Source ${reference.length + i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
+  });
+
   return context;
 }
 
 export async function SparkAI_Search(
   query: string, 
   customSources: CustomSource[] = [],
-  onStage?: (stage: string) => void,
-  isDeepMode: boolean = false,
-  ragSettings?: RAGSettings
+  onStage?: (stage: string) => void
 ) {
-  if (onStage) {
-    onStage(isDeepMode 
-      ? `Conducting Deep Multi-Dataset Archival Research...` 
-      : `Gathering Reference Intelligence...`);
-  }
+  const normalized = normalizeQuery(query);
+  const summaryPromise = getSummary(normalized);
+  const mediaPromise = getMedia(normalized);
 
-  try {
-    // Stage 1: Core research from Wikipedia
-    const { results, summary, media } = await searchWikipedia(query, isDeepMode ? 15 : 8);
-    let sources: SearchResult[] = results;
+  if (onStage) onStage(`Indexing Reference Intelligence for '${query}'...`);
+  const wikiResults = await searchWikipedia(normalized);
+  
+  if (onStage) onStage(`Expanding search via Puter Web for '${query}'...`);
+  const webResults = await puterSearch(normalized);
 
-    // Additional depth for Deep Mode using sub-queries
-    if (isDeepMode) {
-      if (onStage) onStage(`Expanding Technical Coverage via Research Indices...`);
-      const depthQueries = expandQuery(query);
-      const [techRes, histRes] = await Promise.all([
-        searchWikipedia(depthQueries[3], 5), // Technical query
-        searchWikipedia(depthQueries[1], 5)  // History query
-      ]);
-      sources = [...sources, ...techRes.results, ...histRes.results];
-    }
+  const queries = expandQuery(normalized);
+  const expansionResults = await searchWikipedia(queries[1]);
 
-    if (onStage) onStage(`Synthesizing Media Intelligence...`);
+  const processedCustom: SearchResult[] = customSources.map(cs => ({
+    title: cs.type === 'url' ? cs.value : 'Injected Context',
+    snippet: cs.type === 'text' ? cs.value : `Data from custom URL: ${cs.value}`,
+    url: cs.type === 'url' ? cs.value : '#custom',
+    source: cs.type === 'url' ? 'User Link' : 'User Text',
+    category: 'Reference'
+  }));
 
-    const processedCustom: SearchResult[] = customSources.map(cs => ({
-      title: cs.type === 'url' ? cs.value : 'User Context',
-      snippet: cs.type === 'text' ? cs.value : `Active research link: ${cs.value}`,
-      url: cs.type === 'url' ? cs.value : '#custom',
-      source: cs.type === 'url' ? 'Source' : 'Text',
-      category: 'Reference' as const
-    }));
-
-    const allResults = [...sources, ...processedCustom];
-    const ranked = deduplicateAndRank(allResults, query, ragSettings);
-
-    return {
-      sources: ranked,
-      context: buildContext(ranked),
-      summary: summary || (ranked[0]?.snippet || null),
-      media: media,
-      queries: expandQuery(query)
-    };
-  } catch (error) {
-    console.error("Advanced Search Engine Error:", error);
-    const { results, summary, media } = await searchWikipedia(query, 10);
-    return {
-      sources: results,
-      context: buildContext(results),
-      summary,
-      media,
-      queries: expandQuery(query)
-    };
-  }
+  const allResults = [...wikiResults, ...webResults, ...expansionResults, ...processedCustom];
+  const ranked = deduplicateAndRank(allResults);
+  const summary = await summaryPromise;
+  const media = await mediaPromise;
+  
+  return {
+    summary,
+    sources: ranked,
+    context: buildContext(ranked),
+    queries,
+    media
+  };
 }
