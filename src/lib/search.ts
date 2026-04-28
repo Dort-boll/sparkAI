@@ -19,7 +19,7 @@ function expandQuery(q: string) {
 }
 
 // Re-implementing the robust search logic from server.ts for client-side execution
-async function searchWikipedia(query: string): Promise<SearchResult[]> {
+async function searchReference(query: string): Promise<SearchResult[]> {
   try {
     const wikiRes = await axios.get(WIKI_API, {
       params: {
@@ -78,7 +78,7 @@ async function searchWikipedia(query: string): Promise<SearchResult[]> {
           title: item.title,
           snippet: snippet,
           url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
-          source: 'Wikipedia',
+          source: 'Reference Library',
           category: 'Reference' as const
         },
         ...infoboxLinks
@@ -87,7 +87,7 @@ async function searchWikipedia(query: string): Promise<SearchResult[]> {
 
     return results.flat();
   } catch (error) {
-    console.error('Wikipedia search error:', error);
+    console.error('Core search error:', error);
     return [];
   }
 }
@@ -136,7 +136,7 @@ async function getMedia(query: string): Promise<MediaResult[]> {
         type: 'image',
         url: page.thumbnail.source,
         thumbnail: page.thumbnail.source,
-        source: `Wikipedia: ${page.title}`
+        source: `Reference: ${page.title}`
       }));
   } catch (error) {
     return [];
@@ -153,11 +153,11 @@ async function puterSearch(query: string): Promise<SearchResult[]> {
       title: r.title,
       snippet: r.snippet || r.description || "Detailed web content retrieved for analysis.",
       url: r.url || r.link,
-      source: 'Puter Web',
+      source: 'Spark Mesh',
       category: 'Web' as const
     }));
   } catch (error) {
-    console.error('Puter Search error:', error);
+    console.error('Spark Search error:', error);
     return [];
   }
 }
@@ -200,7 +200,7 @@ export function buildContext(results: SearchResult[]) {
   return context;
 }
 
-export async function SparkAI_Search(
+export async function SparkSearch(
   query: string, 
   customSources: CustomSource[] = [],
   onStage?: (stage: string) => void,
@@ -210,20 +210,20 @@ export async function SparkAI_Search(
   const summaryPromise = getSummary(normalized);
   const mediaPromise = getMedia(normalized);
 
-  if (onStage) onStage(`Indexing Reference Intelligence for '${query}'...`);
-  const wikiResults = await searchWikipedia(normalized);
+  if (onStage) onStage(`Spark Edge: Indexing references for '${query}'...`);
+  const wikiResults = await searchReference(normalized);
   
   let webResults: SearchResult[] = [];
   if (!isGuest) {
-    if (onStage) onStage(`Expanding search via Puter Web for '${query}'...`);
+    if (onStage) onStage(`Spark Mesh: Expanding global search for '${query}'...`);
     webResults = await puterSearch(normalized);
   } else {
     // In guest mode, we skip general web search
-    if (onStage) onStage(`Guest Mode: Accessing reference knowledge for '${query}'...`);
+    if (onStage) onStage(`Guest Access: Retrieving knowledge for '${query}'...`);
   }
 
   const queries = expandQuery(normalized);
-  const expansionResults = await searchWikipedia(queries[1]);
+  const expansionResults = await searchReference(queries[1]);
 
   const processedCustom: SearchResult[] = customSources.map(cs => ({
     title: cs.type === 'url' ? cs.value : 'Injected Context',

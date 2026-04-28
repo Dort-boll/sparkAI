@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, SearchResult, CustomSource } from './types';
-import { SparkAI_Search } from './lib/search';
+import { SparkSearch } from './lib/search';
 import { generateAnswer } from './lib/reasoning';
 import { ChatInput } from './components/ChatInput';
 import { MessageItem } from './components/MessageItem';
@@ -60,7 +60,7 @@ export default function App() {
         setIsReady(true);
         setStatus(null);
       } else {
-        setStatus("Waiting for Spark Engine...");
+        setStatus("Configuring Spark Edge...");
       }
     }, 500);
     return () => clearInterval(checkPuter);
@@ -86,7 +86,7 @@ export default function App() {
     setIsGuest(true);
     setIsAuthed(true);
     setUser({ username: "Guest User", isGuest: true });
-    // Reset messages when switching to guest mode to ensure Wikipedia-only context
+    // Reset messages when switching to guest mode to ensure reference-only context
     setMessages([]);
   };
 
@@ -126,7 +126,7 @@ export default function App() {
 
   const handleSend = async (query: string) => {
     if (!(window as any).puter) {
-      alert("Spark AI is still initializing. Please wait a moment.");
+      alert("Spark Search is still initializing. Please wait a moment.");
       return;
     }
     const userMessage: ChatMessage = {
@@ -138,11 +138,11 @@ export default function App() {
 
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
-    setStatus("Initiating Spark Pipeline...");
+    setStatus("Spark Pipeline Active...");
 
     try {
       // 1. Staged Search Phase
-      const { sources, context, summary, media, queries: expandedQueries } = await SparkAI_Search(query, customSources, (stage) => {
+      const { sources, context, summary, media, queries: expandedQueries } = await SparkSearch(query, customSources, (stage) => {
         setStatus(stage);
       }, isGuest);
       
@@ -166,9 +166,29 @@ export default function App() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-      setStatus("Reasoning...");
 
-      // 3. Reasoning Phase (Puter/Vayu)
+      if (isGuest) {
+        // Guest mode: Strictly Reference Library summary ONLY. No AI reasoning.
+        setMessages((prev) => 
+          prev.map((msg) => {
+            if (msg.id === assistantMessage.id) {
+              return { 
+                ...msg, 
+                content: summary || "Knowledge retrieval complete. Review sources below.",
+                status: 'complete' 
+              };
+            }
+            return msg;
+          })
+        );
+        setIsLoading(false);
+        setStatus(null);
+        return;
+      }
+
+      setStatus("Spark Reasoning Core Active...");
+
+      // 3. Reasoning Phase (Only for non-guests)
       await generateAnswer(query, context, messages, ({ content, thought, status: assistantStatus }) => {
         setMessages((prev) => 
           prev.map((msg) => {
@@ -205,11 +225,23 @@ export default function App() {
 
   if (!isReady) {
     return (
-       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4">
-         <Sparkles size={48} className="text-brand animate-pulse mb-6" />
-         <div className="flex items-center gap-3">
-           <Cpu size={18} className="text-brand animate-spin" />
-           <span className="text-sm font-bold text-slate-300 uppercase tracking-widest">{status || "Initializing..."}</span>
+       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-[#020617]">
+         <motion.div
+           animate={{ 
+             scale: [0.9, 1.1, 0.9],
+             opacity: [0.5, 1, 0.5] 
+           }}
+           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+           className="relative"
+         >
+           <Sparkles size={64} className="text-brand mb-6 filter blur-[2px]" />
+           <div className="absolute inset-0 bg-brand/30 blur-2xl rounded-full" />
+         </motion.div>
+         <div className="flex flex-col items-center gap-4">
+           <div className="flex items-center gap-3">
+             <div className="w-2 h-2 rounded-full bg-brand animate-ping" />
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">{status || "Configuring Spark Edge"}</span>
+           </div>
          </div>
        </div>
     );
@@ -217,45 +249,105 @@ export default function App() {
 
   if (!isAuthed) {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#020617]">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-brand/5 blur-[160px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-purple-500/5 blur-[160px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] pointer-events-none mix-blend-overlay" />
+
+        {/* Ambient Grid */}
+        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
+          style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,1) 1px, transparent 0)', backgroundSize: '48px 48px' }} 
+        />
+
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="glass-card flex flex-col items-center justify-center text-center p-8 sm:p-10 max-w-md w-full relative z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+          className="flex flex-col items-center justify-center text-center max-w-2xl w-full relative z-10"
         >
-           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand to-brand-dark flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.5)] mb-6">
-              <Sparkles size={32} className="text-white" />
-           </div>
-           <h1 className="text-3xl font-display font-bold text-white tracking-tight mb-2">Spark AI</h1>
-           <p className="text-sm text-slate-400 leading-relaxed mb-8">
-             Advanced real-time continuous reasoning engine. Please sign in securely via your Puter.js network pass.
-           </p>
+           <motion.div 
+             initial={{ scale: 0.8, opacity: 0, rotate: -20 }}
+             animate={{ scale: 1, opacity: 1, rotate: 0 }}
+             transition={{ duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
+             className="relative mb-12"
+           >
+              <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-brand to-brand-dark flex items-center justify-center shadow-[0_0_80px_rgba(59,130,246,0.2)]" >
+                <Sparkles size={48} className="text-white" />
+              </div>
+              <div className="absolute -inset-4 bg-brand/20 blur-3xl rounded-full -z-10 animate-pulse" />
+           </motion.div>
            
-           <div className="flex flex-col gap-3 w-full">
+           <div className="overflow-hidden mb-6">
+           <motion.h1 
+               initial={{ y: 100, opacity: 0 }}
+               animate={{ y: 0, opacity: 1 }}
+               transition={{ delay: 0.2, duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
+               className="text-7xl sm:text-9xl font-display font-bold text-white tracking-tighter mb-4"
+             >
+               Spark
+             </motion.h1>
+             <motion.div
+               initial={{ width: 0 }}
+               animate={{ width: '100%' }}
+               transition={{ delay: 1, duration: 1.5, ease: "easeInOut" }}
+               className="h-px bg-gradient-to-r from-transparent via-brand to-transparent opacity-50 mb-8"
+             />
+           </div>
+           
+           <motion.p 
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.5, duration: 0.8 }}
+             className="text-lg sm:text-2xl text-slate-400 font-medium leading-relaxed mb-16 px-8 max-w-lg mx-auto"
+           >
+             Synthesize the world's <span className="text-white">knowledge</span> in real-time. Powered by the <span className="text-brand-light font-bold">Spark Edge Mesh</span>.
+           </motion.p>
+           
+           <motion.div 
+             initial={{ opacity: 0, y: 30 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.7, duration: 0.8 }}
+             className="flex flex-col sm:flex-row gap-5 w-full px-8"
+           >
              <button 
                onClick={handleLogin}
                disabled={isLoggingIn}
-               className="w-full relative group overflow-hidden bg-white text-slate-900 font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] disabled:opacity-70 disabled:pointer-events-none"
+               className="flex-1 relative group overflow-hidden bg-white text-slate-900 font-bold text-base rounded-[1.25rem] py-5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl hover:shadow-brand/40 duration-500 disabled:opacity-70 disabled:pointer-events-none"
              >
-               <span className="relative z-10 flex items-center justify-center gap-2">
-                  {isLoggingIn ? <Cpu className="animate-spin" size={16} /> : <User size={16} />}
-                  {isLoggingIn ? "Authenticating Request..." : "Sign in to Continue"}
+               <span className="relative z-10 flex items-center justify-center gap-3">
+                  {isLoggingIn ? <Cpu className="animate-spin" size={20} /> : <User size={20} />}
+                  {isLoggingIn ? "Syncing..." : "Enter Workspace"}
                </span>
-               <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-purple-400/20 translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-500" />
+               <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-transparent translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-700" />
              </button>
-
+ 
              <button 
                onClick={handleGuestLogin}
                disabled={isLoggingIn}
-               className="w-full relative group overflow-hidden bg-white/5 border border-white/10 text-white font-bold text-sm rounded-xl py-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] hover:bg-white/10 hover:border-brand/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] disabled:opacity-70 disabled:pointer-events-none"
+               className="flex-1 relative group overflow-hidden bg-white/5 border border-white/10 text-white font-bold text-base rounded-[1.25rem] py-5 transition-all hover:scale-[1.02] active:scale-[0.98] hover:bg-white/10 hover:border-white/20 duration-500 disabled:opacity-70 disabled:pointer-events-none backdrop-blur-md"
              >
-               <span className="relative z-10 flex items-center justify-center gap-2">
-                  <SearchIcon size={16} className="text-brand-light group-hover:scale-110 transition-transform" />
+               <span className="relative z-10 flex items-center justify-center gap-3">
+                  <SearchIcon size={20} className="text-brand-light group-hover:text-white transition-colors duration-500" />
                   Continue as Guest
                </span>
-               <div className="absolute inset-0 bg-gradient-to-r from-brand/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+               <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
              </button>
-           </div>
+           </motion.div>
+ 
+           <motion.div
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             transition={{ delay: 1.2, duration: 1.5 }}
+             className="mt-20 flex flex-col items-center gap-4"
+           >
+              <div className="text-[10px] uppercase tracking-[0.6em] font-bold text-slate-600 mb-2">Technological stack</div>
+              <div className="flex items-center gap-8 px-8 py-3 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-sm grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+                <span className="text-xs font-black text-slate-300 tracking-tighter">SPARK_MESH</span>
+                <div className="h-4 w-[1px] bg-white/10" />
+                <span className="text-xs font-black text-slate-300 tracking-tighter">EDGE_SYNC</span>
+              </div>
+           </motion.div>
         </motion.div>
       </div>
     );
@@ -270,10 +362,10 @@ export default function App() {
             <Sparkles size={22} className="text-white" />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1">Spark AI</h1>
+            <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1">Spark Search</h1>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isGuest ? "Guest Access" : "Network Active"}</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isGuest ? "Guest Access" : "Spark Edge Mesh Active"}</span>
             </div>
           </div>
         </div>
@@ -307,7 +399,7 @@ export default function App() {
               className="hidden sm:flex items-center gap-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-400/20 px-3 py-2"
               title="Sign Out"
             >
-              <span className="text-xs font-bold whitespace-nowrap max-w-[100px] truncate">{user?.username || "Puter User"}</span>
+              <span className="text-xs font-bold whitespace-nowrap max-w-[100px] truncate">{user?.username || "Spark User"}</span>
               <LogOut size={16} />
             </button>
             <button 

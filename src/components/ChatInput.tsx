@@ -82,7 +82,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
           <Sparkles size={12} /> <span className="hidden xs:inline">Reasoning</span><span className="xs:hidden">AI</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" /> Spark AI
+          <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" /> Spark Search
         </div>
       </div>
     </>

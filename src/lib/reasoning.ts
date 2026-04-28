@@ -9,7 +9,7 @@ export async function generateAnswer(
 ) {
   const puter = (window as any).puter;
   if (!puter) {
-    return "Initializing Vayu AGI Reasoning Engine...";
+    return "Initializing Spark Search Reasoning Engine...";
   }
 
   try {
@@ -17,7 +17,7 @@ export async function generateAnswer(
     onUpdate({ status: 'thinking', thought: "Synthesizing Phase 1: Reference Data & User Context..." });
     await new Promise(r => setTimeout(r, 800));
     
-    onUpdate({ thought: isGuest ? "Filtering reference knowledge extracts..." : "Synthesizing Phase 2: Supplemental Web Intelligence..." });
+    onUpdate({ thought: isGuest ? "Filtering reference knowledge extracts..." : "Synthesizing Phase 2: Supplemental Intelligence..." });
     await new Promise(r => setTimeout(r, 800));
 
     onUpdate({ thought: "Indexing authority-ranked content line by line..." });
@@ -29,7 +29,7 @@ export async function generateAnswer(
     onUpdate({ status: 'writing', thought: "Structuring verified reasoning path..." });
 
     const systemPrompt = `
-You are Spark AI, an advanced real-time reasoning engine. 
+You are Spark Search, the world's most advanced real-time reasoning engine. 
 CURRENT SYSTEM DATE AND TIME: ${new Date().toISOString()}
 
 ${isGuest ? 'GUEST MODE ACTIVE: You MUST ONLY use information provided from the standard reference sources. Do not use outside knowledge. Your response should strictly mirror the reference intelligence provided. If information is not in the context, state that it is not available in the public records.' : ''}
@@ -62,24 +62,25 @@ RULES:
       content: msg.content
     }));
 
-    const res = await puter.ai.chat({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...mappedHistory,
-        {
-          role: "user",
-          content: `Question: ${query}\n\nLATEST FRESH CONTEXT TO USE:\n${context}`
-        }
-      ]
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...mappedHistory,
+      {
+        role: "user",
+        content: `Question: ${query}\n\nLATEST FRESH CONTEXT TO USE:\n${context}`
+      }
+    ];
+
+    const res = await puter.ai.chat(messages, {
+      model: "tencent/hy3-preview:free"
     });
 
     const content = res?.message?.content || "I couldn't synthesize a response.";
     onUpdate({ content, status: 'complete' });
     return content;
   } catch (error) {
-    console.error("Reasoning Error:", error);
-    onUpdate({ content: "Internal reasoning failure.", status: 'complete' });
-    return "Internal reasoning failure.";
+    console.error("AI Error:", error);
+    onUpdate({ content: "Sorry, I couldn't generate a response.", status: 'complete' });
+    return "Sorry, I couldn't generate a response.";
   }
 }
