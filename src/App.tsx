@@ -5,7 +5,7 @@ import { generateAnswer } from './lib/reasoning';
 import { ChatInput } from './components/ChatInput';
 import { MessageItem } from './components/MessageItem';
 import { SourceManager } from './components/SourceManager';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, User, LogOut, Layers } from 'lucide-react';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, User, LogOut, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -111,18 +111,23 @@ export default function App() {
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   };
 
   useEffect(() => {
-    if (isAtBottom && messages.length > 0) {
-      const timeout = setTimeout(() => {
-        scrollToBottom('smooth');
-      }, 100);
-      return () => clearTimeout(timeout);
+    if (isAtBottom && messages.length > 0 && isLoading) {
+      // Only auto-scroll while loading/streaming
+      const handle = requestAnimationFrame(() => {
+        scrollToBottom('auto');
+      });
+      return () => cancelAnimationFrame(handle);
     }
-  }, [messages, status]);
+  }, [messages, status, isLoading]);
 
   const handleSend = async (query: string) => {
     if (!(window as any).puter) {
@@ -151,6 +156,9 @@ export default function App() {
       
       setStatus(`Refining ${referenceCount} Reference & ${webCount} Web insights...`);
 
+      // Artificial Delay for "Thinking" effect as requested (2 seconds)
+      await new Promise(r => setTimeout(r, 2000));
+
       // 2. Initialize Assistant Message
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -168,13 +176,17 @@ export default function App() {
       setMessages((prev) => [...prev, assistantMessage]);
 
       if (isGuest) {
-        // Guest mode: Strictly Reference Library summary ONLY. No AI reasoning.
+        // Guest mode: Strictly Reference Library summary ONLY.
+        // Add a small delay for "Reasoning" effect in guest mode too
+        await new Promise(r => setTimeout(r, 1500));
+        
         setMessages((prev) => 
           prev.map((msg) => {
             if (msg.id === assistantMessage.id) {
               return { 
                 ...msg, 
                 content: summary || "Knowledge retrieval complete. Review sources below.",
+                thoughts: ["Indexing Reference Library entries...", "Synthesizing digest summary...", "Finalizing knowledge map..."],
                 status: 'complete' 
               };
             }
@@ -354,9 +366,15 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col w-full overflow-x-hidden">
+    <div className="min-h-[100dvh] mesh-bg grid-pattern flex flex-col w-full overflow-x-hidden relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#020617]/50 to-[#020617] pointer-events-none" />
+      
+      {/* Background Glows */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand/10 blur-[120px] rounded-full pointer-events-none opacity-50" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-dark/10 blur-[120px] rounded-full pointer-events-none opacity-50" />
+
       {/* Header */}
-      <header className="nav-blur px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center group">
+      <header className="nav-blur px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center group relative z-[100]">
         <div className="flex items-center gap-3 cursor-pointer">
           <div className="p-2 bg-gradient-to-tr from-brand to-brand-dark rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] group-hover:rotate-12 transition-transform duration-300">
             <Sparkles size={22} className="text-white" />
@@ -462,20 +480,38 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Floating Scroll to Bottom Arrow */}
-      <AnimatePresence>
-        {!isAtBottom && messages.length > 0 && (
-          <motion.button
-            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            onClick={() => scrollToBottom('smooth')}
-            className="fixed bottom-[100px] sm:bottom-[120px] left-1/2 -translate-x-1/2 z-[60] bg-brand/20 hover:bg-brand/40 border border-brand/30 text-white p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors"
-          >
-            <ArrowDown size={18} />
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {/* Floating Scroll Controls */}
+      <div className="fixed bottom-32 sm:bottom-40 right-6 sm:right-12 z-[60] flex flex-col gap-3">
+        <AnimatePresence>
+          {messages.length > 0 && (
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              onClick={scrollToTop}
+              className="bg-brand/10 hover:bg-brand/30 border border-brand/20 text-white p-3 rounded-2xl shadow-2xl backdrop-blur-xl transition-all hover:scale-110 active:scale-95"
+              title="Scroll to Top"
+            >
+              <ArrowUp size={20} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {!isAtBottom && messages.length > 0 && (
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              onClick={() => scrollToBottom('smooth')}
+              className="bg-brand/10 hover:bg-brand/30 border border-brand/20 text-white p-3 rounded-2xl shadow-2xl backdrop-blur-xl transition-all hover:scale-110 active:scale-95"
+              title="Scroll to Bottom"
+            >
+              <ArrowDown size={20} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Fixed Output Input */}
       {messages.length > 0 && <ChatInput onSend={handleSend} isLoading={isLoading} isHome={false} />}
