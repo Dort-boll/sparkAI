@@ -72,7 +72,7 @@ RULES:
     ];
 
     const res = await puter.ai.chat(messages, {
-      model: "tencent/hy3-preview:free"
+      model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
     });
 
     const content = res?.message?.content || "I couldn't synthesize a response.";
