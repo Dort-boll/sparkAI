@@ -1,6 +1,6 @@
 {
   "name": "Spark Search",
   "description": "The world's most advanced real-time reasoning engine. Spark Search synthesizes global intelligence with Edge technology for unprecedented accuracy and depth.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": []
 }

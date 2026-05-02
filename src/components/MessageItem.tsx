@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../types';
 import { SourceList } from './SourceList';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, User, Search as SearchIcon, Image as ImageIcon, ChevronDown, Layers, ArrowRight, Copy, Check, Share2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ActionTooltip } from './ActionTooltip';
+import { Sparkles, User, Search as SearchIcon, Image as ImageIcon, ChevronDown, Layers, ArrowRight, Copy, Check, Share2, ThumbsUp, ThumbsDown, MessageSquarePlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MessageItemProps {
@@ -17,6 +18,60 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{ x: number, y: number, text: string } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        setSelectionRange(null);
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const isWithinContent = contentRef.current?.contains(range.commonAncestorContainer);
+      
+      if (isWithinContent) {
+        const rect = range.getBoundingClientRect();
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        
+        if (containerRect) {
+          // Calculate center X relative to container
+          const centerX = rect.left - containerRect.left + rect.width / 2;
+          // Calculate Y relative to container (top of the selection)
+          const topY = rect.top - containerRect.top;
+          
+          setSelectionRange({
+            x: centerX,
+            y: topY,
+            text: selection.toString().trim()
+          });
+        }
+      } else {
+        setSelectionRange(null);
+      }
+    };
+
+    document.addEventListener('mouseup', handleSelection);
+    // Also handle touch for mobile
+    document.addEventListener('touchend', handleSelection);
+    return () => {
+      document.removeEventListener('mouseup', handleSelection);
+      document.removeEventListener('touchend', handleSelection);
+    };
+  }, []);
+
+  const handleAskSpark = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (selectionRange && onSend) {
+      onSend(`[Deep Dive Request] Elaborate on this context: "${selectionRange.text}"`);
+      setSelectionRange(null);
+      window.getSelection()?.removeAllRanges();
+    }
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -172,62 +227,93 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
                 className="relative group/content"
+                ref={containerRef}
               >
-                <div className="markdown-body text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30">
+                <div ref={contentRef} className="markdown-body text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30">
                   <ReactMarkdown>{message.content}</ReactMarkdown>
                 </div>
+                
+                <AnimatePresence>
+                  {selectionRange && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      animate={{ opacity: 1, y: -55, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      style={{ 
+                        position: 'absolute',
+                        left: `${selectionRange.x}px`,
+                        top: `${selectionRange.y}px`,
+                        transform: 'translateX(-50%)',
+                        zIndex: 100
+                      }}
+                      className="pointer-events-auto"
+                    >
+                      <button 
+                        onMouseDown={handleAskSpark}
+                        className="flex items-center gap-2.5 bg-brand text-white px-5 py-2.5 rounded-full shadow-[0_15px_40px_rgba(59,130,246,0.6)] whitespace-nowrap font-bold text-xs hover:scale-110 active:scale-90 transition-all animate-shimmer bg-[linear-gradient(110deg,#3b82f6,45%,#60a5fa,55%,#3b82f6)] bg-[length:200%_100%] border border-white/30 backdrop-blur-sm"
+                      >
+                        <MessageSquarePlus size={16} />
+                        Ask Spark Intelligence
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 
                 {message.status === 'complete' && (
                   <div className="flex flex-wrap items-center gap-2 mt-8 pt-5 border-t border-white/5">
                     <div className="flex items-center gap-1 bg-white/5 backdrop-blur-md rounded-2xl p-1.5 border border-white/10 shadow-inner">
-                      <button 
-                        onClick={() => {
-                          const newFeedback = feedback === 'like' ? null : 'like';
-                          setFeedback(newFeedback);
-                          if (newFeedback === 'like') {
-                            toast.success("Thanks! Hope you loved it.", {
-                              description: "Your feedback helps us improve Spark Search.",
-                            });
-                          }
-                        }}
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${feedback === 'like' ? 'bg-brand/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'}`}
-                        title="Comprehensive & Accurate"
-                      >
-                        <ThumbsUp size={18} />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const newFeedback = feedback === 'dislike' ? null : 'dislike';
-                          setFeedback(newFeedback);
-                          if (newFeedback === 'dislike') {
-                            toast.info("We're sorry. We'll improve.", {
-                              description: "Our team has been alerted to refine this response path.",
-                            });
-                          }
-                        }}
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${feedback === 'dislike' ? 'bg-red-500/30 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'}`}
-                        title="Needs Improvement"
-                      >
-                        <ThumbsDown size={18} />
-                      </button>
+                      <ActionTooltip text={feedback === 'like' ? "Liked" : "Like Response"}>
+                        <button 
+                          onClick={() => {
+                            const newFeedback = feedback === 'like' ? null : 'like';
+                            setFeedback(newFeedback);
+                            if (newFeedback === 'like') {
+                              toast.success("Thanks! Hope you loved it.", {
+                                description: "Your feedback helps us improve Spark Search.",
+                              });
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl transition-all duration-300 ${feedback === 'like' ? 'bg-brand/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'}`}
+                        >
+                          <ThumbsUp size={18} />
+                        </button>
+                      </ActionTooltip>
+                      <ActionTooltip text={feedback === 'dislike' ? "Disliked" : "Dislike Response"}>
+                        <button 
+                          onClick={() => {
+                            const newFeedback = feedback === 'dislike' ? null : 'dislike';
+                            setFeedback(newFeedback);
+                            if (newFeedback === 'dislike') {
+                              toast.info("We're sorry. We'll improve.", {
+                                description: "Our team has been alerted to refine this response path.",
+                              });
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl transition-all duration-300 ${feedback === 'dislike' ? 'bg-red-500/30 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'}`}
+                        >
+                          <ThumbsDown size={18} />
+                        </button>
+                      </ActionTooltip>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button 
-                        onClick={handleCopy}
-                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-white transition-all flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-widest px-4 group"
-                        title="Copy Response"
-                      >
-                        {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} className="group-hover:scale-110 transition-transform" />}
-                        <span className={copied ? 'text-emerald-400' : ''}>{copied ? 'Copied' : 'Copy'}</span>
-                      </button>
-                      <button 
-                        onClick={handleShare}
-                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-white transition-all group"
-                        title="Share Response"
-                      >
-                        <Share2 size={18} className="group-hover:rotate-12 transition-transform" />
-                      </button>
+                      <ActionTooltip text="Copy to clipboard">
+                        <button 
+                          onClick={handleCopy}
+                          className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-white transition-all flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-widest px-4 group"
+                        >
+                          {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} className="group-hover:scale-110 transition-transform" />}
+                          <span className={copied ? 'text-emerald-400' : ''}>{copied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </ActionTooltip>
+                      <ActionTooltip text="Share analysis">
+                        <button 
+                          onClick={handleShare}
+                          className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-white transition-all group"
+                        >
+                          <Share2 size={18} className="group-hover:rotate-12 transition-transform" />
+                        </button>
+                      </ActionTooltip>
                     </div>
                   </div>
                 )}

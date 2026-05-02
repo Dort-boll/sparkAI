@@ -5,6 +5,9 @@ import { generateAnswer } from './lib/reasoning';
 import { ChatInput } from './components/ChatInput';
 import { MessageItem } from './components/MessageItem';
 import { SourceManager } from './components/SourceManager';
+import { ActionTooltip } from './components/ActionTooltip';
+import { Logo } from './components/Brand';
+import { ProtocolOverlay } from './components/ProtocolOverlay';
 import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, User, LogOut, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
@@ -20,6 +23,7 @@ export default function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [protocolType, setProtocolType] = useState<'guest' | 'user' | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +79,7 @@ export default function App() {
       await puter.auth.signIn();
       const currentUser = await puter.auth.getUser();
       setUser(currentUser);
-      setIsAuthed(true);
+      setProtocolType('user');
     } catch (e) {
       console.error("Sign in failed", e);
     } finally {
@@ -84,11 +88,16 @@ export default function App() {
   };
 
   const handleGuestLogin = () => {
-    setIsGuest(true);
-    setIsAuthed(true);
+    setProtocolType('guest');
     setUser({ username: "Guest User", isGuest: true });
     // Reset messages when switching to guest mode to ensure reference-only context
     setMessages([]);
+  };
+
+  const finishProtocol = () => {
+    setIsGuest(protocolType === 'guest');
+    setIsAuthed(true);
+    setProtocolType(null);
   };
 
   const handleLogout = async () => {
@@ -269,8 +278,8 @@ export default function App() {
            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
            className="relative"
          >
-           <Sparkles size={64} className="text-brand mb-6 filter blur-[2px]" />
-           <div className="absolute inset-0 bg-brand/30 blur-2xl rounded-full" />
+           <Logo size={80} className="mb-6" />
+           <div className="absolute inset-0 bg-brand/30 blur-3xl rounded-full -z-10" />
          </motion.div>
          <div className="flex flex-col items-center gap-4">
            <div className="flex items-center gap-3">
@@ -295,6 +304,12 @@ export default function App() {
           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,1) 1px, transparent 0)', backgroundSize: '48px 48px' }} 
         />
 
+        <AnimatePresence>
+          {protocolType && (
+            <ProtocolOverlay type={protocolType} onComplete={finishProtocol} />
+          )}
+        </AnimatePresence>
+
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -307,9 +322,7 @@ export default function App() {
              transition={{ duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
              className="relative mb-12"
            >
-              <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-brand to-brand-dark flex items-center justify-center shadow-[0_0_80px_rgba(59,130,246,0.2)]" >
-                <Sparkles size={48} className="text-white" />
-              </div>
+              <Logo size={100} />
               <div className="absolute -inset-4 bg-brand/20 blur-3xl rounded-full -z-10 animate-pulse" />
            </motion.div>
            
@@ -399,9 +412,7 @@ export default function App() {
       {/* Header */}
       <header className="nav-blur px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center group relative z-[100]">
         <div className="flex items-center gap-3 cursor-pointer">
-          <div className="p-2 bg-gradient-to-tr from-brand to-brand-dark rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] group-hover:rotate-12 transition-transform duration-300">
-            <Sparkles size={22} className="text-white" />
-          </div>
+          <Logo size={40} className="group-hover:rotate-12 transition-transform duration-300" />
           <div className="flex flex-col">
             <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1">Spark Search</h1>
             <div className="flex items-center gap-1.5">
@@ -431,22 +442,24 @@ export default function App() {
             )}
           </AnimatePresence>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={handleClearChat}
-              className="p-2 sm:p-2.5 hover:bg-red-500/10 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-500/20"
-              title="Clear Session"
-            >
-              <History size={18} className="sm:w-5 sm:h-5" />
-            </button>
+            <ActionTooltip text="Clear Session">
+              <button 
+                onClick={handleClearChat}
+                className="p-2 sm:p-2.5 hover:bg-red-500/10 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-500/20"
+              >
+                <History size={18} className="sm:w-5 sm:h-5" />
+              </button>
+            </ActionTooltip>
             <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
-            <button 
-              onClick={handleLogout}
-              className="hidden sm:flex items-center gap-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-400/20 px-3 py-2"
-              title="Sign Out"
-            >
-              <span className="text-xs font-bold whitespace-nowrap max-w-[100px] truncate">{user?.username || "Spark User"}</span>
-              <LogOut size={16} />
-            </button>
+            <ActionTooltip text="Sign Out">
+              <button 
+                onClick={handleLogout}
+                className="hidden sm:flex items-center gap-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-400/20 px-3 py-2"
+              >
+                <span className="text-xs font-bold whitespace-nowrap max-w-[100px] truncate">{user?.username || "Spark User"}</span>
+                <LogOut size={16} />
+              </button>
+            </ActionTooltip>
             <button 
               onClick={handleLogout}
               className="sm:hidden p-2 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-red-400"
@@ -467,7 +480,7 @@ export default function App() {
               className="flex-1 flex flex-col items-center justify-center text-center px-4 w-full min-h-[75vh]"
             >
               <div className="mb-6 relative">
-                 <Sparkles size={48} className="text-brand mx-auto mb-4" />
+                 <Logo size={64} className="mx-auto mb-4" />
                  <h2 className="text-4xl sm:text-5xl font-display font-medium tracking-tight text-slate-200">
                    What do you want to know?
                  </h2>
@@ -511,31 +524,39 @@ export default function App() {
       <div className="fixed bottom-32 sm:bottom-40 right-6 sm:right-12 z-[60] flex flex-col gap-3">
         <AnimatePresence>
           {messages.length > 0 && (
-            <motion.button
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              onClick={scrollToTop}
-              className="bg-brand/10 hover:bg-brand/30 border border-brand/20 text-white p-3 rounded-2xl shadow-2xl backdrop-blur-xl transition-all hover:scale-110 active:scale-95"
-              title="Scroll to Top"
             >
-              <ArrowUp size={20} />
-            </motion.button>
+              <ActionTooltip text="Scroll to Top">
+                <button
+                  onClick={scrollToTop}
+                  className="bg-brand/10 hover:bg-brand/30 border border-brand/20 text-white p-3 rounded-2xl shadow-2xl backdrop-blur-xl transition-all hover:scale-110 active:scale-95"
+                >
+                  <ArrowUp size={20} />
+                </button>
+              </ActionTooltip>
+            </motion.div>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {!isAtBottom && messages.length > 0 && (
-            <motion.button
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              onClick={() => scrollToBottom('smooth')}
-              className="bg-brand/10 hover:bg-brand/30 border border-brand/20 text-white p-3 rounded-2xl shadow-2xl backdrop-blur-xl transition-all hover:scale-110 active:scale-95"
-              title="Scroll to Bottom"
             >
-              <ArrowDown size={20} />
-            </motion.button>
+              <ActionTooltip text="Scroll to Bottom">
+                <button
+                  onClick={() => scrollToBottom('smooth')}
+                  className="bg-brand/10 hover:bg-brand/30 border border-brand/20 text-white p-3 rounded-2xl shadow-2xl backdrop-blur-xl transition-all hover:scale-110 active:scale-95"
+                >
+                  <ArrowDown size={20} />
+                </button>
+              </ActionTooltip>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
