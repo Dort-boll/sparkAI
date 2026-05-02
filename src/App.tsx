@@ -240,15 +240,18 @@ export default function App() {
       }, isGuest);
 
     } catch (error: any) {
-      console.error("Spark AI Pipeline Error:", error);
+      console.error("Critical Spark Intelligence Failure:", error);
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `### ⚠️ Spark Pipeline Connection Alert\n\nThe Spark Edge Mesh encountered a protocol disruption. This is often caused by high network latency or search service limitations.\n\n**Details:** ${error.message || "Unknown synthesis interrupt."}\n\n**Suggestion:** Refine your query or check your connection parameters.`,
+        content: `### 🔮 Intelligence Protocol Divergence\n\nThe Spark Mesh encountered an unexpected disruption while synthesizing data for your request. \n\n**Common causes:**\n- Temporary cloud network latency\n- Highly specific queries with limited public context\n- Search provider rate limiting\n\n**Diagnostic Trace:** ${error.message || "Unknown synthesis interrupt."}\n\n*Please try refining your query or re-submitting in a few moments.*`,
         timestamp: Date.now(),
         status: 'complete'
       };
       setMessages((prev) => [...prev, errorMessage]);
+      toast.error("Pipeline Protocol Interrupted", {
+        description: "Viewing diagnostic report in latest assistant response."
+      });
     } finally {
       setIsLoading(false);
       setStatus(null);

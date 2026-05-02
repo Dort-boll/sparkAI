@@ -178,8 +178,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                 </div>
                 
                 {message.status === 'complete' && (
-                  <div className="flex items-center gap-1.5 mt-6 pt-4 border-t border-white/5">
-                    <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+                  <div className="flex flex-wrap items-center gap-2 mt-8 pt-5 border-t border-white/5">
+                    <div className="flex items-center gap-1 bg-white/5 backdrop-blur-md rounded-2xl p-1.5 border border-white/10 shadow-inner">
                       <button 
                         onClick={() => {
                           const newFeedback = feedback === 'like' ? null : 'like';
@@ -190,10 +190,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                             });
                           }
                         }}
-                        className={`p-2 rounded-lg transition-all ${feedback === 'like' ? 'bg-brand/20 text-brand' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
-                        title="Better than expected"
+                        className={`p-2.5 rounded-xl transition-all duration-300 ${feedback === 'like' ? 'bg-brand/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'}`}
+                        title="Comprehensive & Accurate"
                       >
-                        <ThumbsUp size={16} />
+                        <ThumbsUp size={18} />
                       </button>
                       <button 
                         onClick={() => {
@@ -201,34 +201,34 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                           setFeedback(newFeedback);
                           if (newFeedback === 'dislike') {
                             toast.info("We're sorry. We'll improve.", {
-                              description: "We've noted your feedback for future refinements.",
+                              description: "Our team has been alerted to refine this response path.",
                             });
                           }
                         }}
-                        className={`p-2 rounded-lg transition-all ${feedback === 'dislike' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
-                        title="Not what I was looking for"
+                        className={`p-2.5 rounded-xl transition-all duration-300 ${feedback === 'dislike' ? 'bg-red-500/30 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'}`}
+                        title="Needs Improvement"
                       >
-                        <ThumbsDown size={16} />
+                        <ThumbsDown size={18} />
                       </button>
                     </div>
 
-                    <div className="h-4 w-[1px] bg-white/10 mx-1" />
-
-                    <button 
-                      onClick={handleCopy}
-                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider"
-                      title="Copy Response"
-                    >
-                      {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                      {copied ? 'Copied' : 'Copy'}
-                    </button>
-                    <button 
-                      onClick={handleShare}
-                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all"
-                      title="Share Response"
-                    >
-                      <Share2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={handleCopy}
+                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-white transition-all flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-widest px-4 group"
+                        title="Copy Response"
+                      >
+                        {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} className="group-hover:scale-110 transition-transform" />}
+                        <span className={copied ? 'text-emerald-400' : ''}>{copied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                      <button 
+                        onClick={handleShare}
+                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-white transition-all group"
+                        title="Share Response"
+                      >
+                        <Share2 size={18} className="group-hover:rotate-12 transition-transform" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </motion.div>

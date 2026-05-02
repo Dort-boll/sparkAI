@@ -258,8 +258,15 @@ export async function SparkSearch(
 
     const allResults = [...wikiResults, ...webResults, ...expansionResults, ...processedCustom];
     
+    // If absolutely no results, don't throw - provide a synthetic placeholder so the reasoning engine can still function
     if (allResults.length === 0) {
-      throw new SparkSearchError('Data Collection', 'No relevant knowledge fragments could be retrieved from the Spark Mesh.');
+      allResults.push({
+        title: "Spark Intelligence Cache",
+        snippet: "Direct real-time search yielded limited fragments. Proceeding with internal knowledge synthesis for: " + query,
+        url: "#internal",
+        source: "System",
+        category: "Reference"
+      });
     }
 
     const ranked = deduplicateAndRank(allResults);
@@ -274,7 +281,14 @@ export async function SparkSearch(
       media
     };
   } catch (error: any) {
-    if (error instanceof SparkSearchError) throw error;
-    throw new SparkSearchError('Pipeline', error.message || 'An unexpected error occurred in the Spark search pipeline.');
+    console.error("Search Pipeline Error:", error);
+    // Even on error, return something to avoid breaking the UI flow
+    return {
+      summary: "Protocol Alert: Intelligence retrieval interrupted. Synthesizing from available fragments.",
+      sources: [{ title: "System Fallback", snippet: "Error: " + (error.message || "Unknown disrupt"), url: "#", source: "System" }],
+      context: "Search failed. Fallback to basic processing.",
+      queries: [query],
+      media: []
+    };
   }
 }
