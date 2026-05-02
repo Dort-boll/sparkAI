@@ -3,7 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../types';
 import { SourceList } from './SourceList';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, User, Search as SearchIcon, Image as ImageIcon, ChevronDown, Layers, ArrowRight, Copy, Check, Share2 } from 'lucide-react';
+import { Sparkles, User, Search as SearchIcon, Image as ImageIcon, ChevronDown, Layers, ArrowRight, Copy, Check, Share2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -15,19 +16,25 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
   const [isThinkingOpen, setIsThinkingOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
     setCopied(true);
+    toast.success('Response copied to clipboard', {
+      icon: <Check size={16} className="text-emerald-400" />
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'Spark AI Analysis',
+        title: 'Spark AI Analysis: ' + (message.content.substring(0, 50) + '...'),
         text: message.content,
         url: window.location.href
+      }).then(() => {
+        toast.success('Successfully shared');
       }).catch(console.error);
     } else {
       handleCopy();
@@ -171,20 +178,56 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                 </div>
                 
                 {message.status === 'complete' && (
-                  <div className="absolute -right-2 top-0 flex flex-col gap-2 opacity-0 group-hover/content:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1.5 mt-6 pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+                      <button 
+                        onClick={() => {
+                          const newFeedback = feedback === 'like' ? null : 'like';
+                          setFeedback(newFeedback);
+                          if (newFeedback === 'like') {
+                            toast.success("Thanks! Hope you loved it.", {
+                              description: "Your feedback helps us improve Spark Search.",
+                            });
+                          }
+                        }}
+                        className={`p-2 rounded-lg transition-all ${feedback === 'like' ? 'bg-brand/20 text-brand' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                        title="Better than expected"
+                      >
+                        <ThumbsUp size={16} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const newFeedback = feedback === 'dislike' ? null : 'dislike';
+                          setFeedback(newFeedback);
+                          if (newFeedback === 'dislike') {
+                            toast.info("We're sorry. We'll improve.", {
+                              description: "We've noted your feedback for future refinements.",
+                            });
+                          }
+                        }}
+                        className={`p-2 rounded-lg transition-all ${feedback === 'dislike' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                        title="Not what I was looking for"
+                      >
+                        <ThumbsDown size={16} />
+                      </button>
+                    </div>
+
+                    <div className="h-4 w-[1px] bg-white/10 mx-1" />
+
                     <button 
                       onClick={handleCopy}
-                      className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
+                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider"
                       title="Copy Response"
                     >
                       {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      {copied ? 'Copied' : 'Copy'}
                     </button>
                     <button 
                       onClick={handleShare}
-                      className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
+                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all"
                       title="Share Response"
                     >
-                      <Share2 size={14} />
+                      <Share2 size={16} />
                     </button>
                   </div>
                 )}
@@ -231,7 +274,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                           <div className="absolute left-[3px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#020617] border border-brand/40 flex items-center justify-center z-10">
                             <div className="w-1.5 h-1.5 bg-brand rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
                           </div>
-                          <span className="text-slate-200 line-clamp-1">{thought}</span>
+                          <span className="text-slate-200 line-clamp-2 md:line-clamp-none">{thought}</span>
                         </motion.div>
                       ))}
                       {message.status !== 'complete' && (

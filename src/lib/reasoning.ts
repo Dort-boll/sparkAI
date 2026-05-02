@@ -39,10 +39,11 @@ YOU MUST explicitly bias towards the absolute newest and latest updates availabl
 
 REASONING PROTOCOL:
 1. DATA PRIORITIZATION & RECENCY: ALWAYS extract and prioritize the "Latest Update" or "News" chunks from the context if the user asks for new, latest, or current data.
-2. CONTEXTUAL AWARENESS: You are engaged in a multi-turn conversation. Understand the context of previous queries and answers to provide highly accurate and relevant follow-ups.
-3. GRANULAR INDEXING: Treat the context as a library of facts. Synthesize them into a logical, highly accurate narrative.
-4. EXHAUSTIVE ELABORATION: Your generated response MUST be incredibly detailed. Provide textbook-level depth, immense elaboration, historical context, technical specifics, and comprehensive coverage.
-5. CITATION INTEGRITY: Every substantive claim must be followed by a bracketed source tag [1], [2].
+2. FACTUAL VERIFICATION: Cross-reference information between multiple sources in the context. If sources conflict, highlight the discrepancy or prefer the more authoritative source (e.g., .gov, .edu, Wikipedia).
+3. CONTEXTUAL AWARENESS: You are engaged in a multi-turn conversation. Understand the context of previous queries and answers to provide highly accurate and relevant follow-ups.
+4. GRANULAR INDEXING: Treat the context as a library of facts. Synthesize them into a logical, highly accurate narrative.
+5. EXHAUSTIVE ELABORATION: Your generated response MUST be incredibly detailed. Provide textbook-level depth, immense elaboration, historical context, technical specifics, and comprehensive coverage. Aim for at least 3-4 detailed sections for complex queries.
+6. CITATION INTEGRITY: Every substantive claim must be followed by a bracketed source tag [1], [2].
 
 STRUCTURE:
 1. Start with a direct answer based on the absolute freshest data available.
@@ -71,16 +72,27 @@ RULES:
       }
     ];
 
-    const res = await puter.ai.chat(messages, {
-      model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-    });
+    const generateWithRetry = async (retries = 2): Promise<any> => {
+      try {
+        return await puter.ai.chat(messages, {
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        });
+      } catch (err) {
+        if (retries <= 0) throw err;
+        await new Promise(r => setTimeout(r, 1000));
+        return generateWithRetry(retries - 1);
+      }
+    };
 
-    const content = res?.message?.content || "I couldn't synthesize a response.";
+    const res = await generateWithRetry();
+
+    const content = res?.message?.content || "I couldn't synthesize a response from the available data.";
     onUpdate({ content, status: 'complete' });
     return content;
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI Error:", error);
-    onUpdate({ content: "Sorry, I couldn't generate a response.", status: 'complete' });
-    return "Sorry, I couldn't generate a response.";
+    const fallbackMessage = `Pipeline Alert: The reasoning engine encountered an issue (${error.message || 'Unknown Protocol Error'}). Our fallback synthesis suggests reviewing the sources below directly.`;
+    onUpdate({ content: fallbackMessage, status: 'complete' });
+    return fallbackMessage;
   }
 }

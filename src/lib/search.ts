@@ -12,16 +12,38 @@ function normalizeQuery(q: string) {
 function expandQuery(q: string) {
   return [
     q,
-    `${q} explanation`,
-    `${q} latest updates`,
-    `${q} detailed analysis`
+    `comprehensive technical deep dive into ${q}`,
+    `latest scientific breakthroughs and developments in ${q}`,
+    `global expert perspective and analysis on ${q}`,
+    `${q} historical context and future trajectory`
   ];
+}
+
+interface ExtendedSearchResult extends SearchResult {
+  score?: number;
+}
+
+export class SparkSearchError extends Error {
+  constructor(public stage: string, message: string) {
+    super(message);
+    this.name = 'SparkSearchError';
+  }
+}
+
+async function searchWithRetry<T>(fn: () => Promise<T>, retries = 2, delay = 500): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise(r => setTimeout(r, delay));
+    return searchWithRetry(fn, retries - 1, delay * 1.5);
+  }
 }
 
 // Re-implementing the robust search logic from server.ts for client-side execution
 async function searchReference(query: string): Promise<SearchResult[]> {
   try {
-    const wikiRes = await axios.get(WIKI_API, {
+    const wikiRes = await searchWithRetry(() => axios.get(WIKI_API, {
       params: {
         action: 'query',
         list: 'search',
@@ -30,7 +52,7 @@ async function searchReference(query: string): Promise<SearchResult[]> {
         origin: '*',
         srlimit: 5
       }
-    });
+    }));
 
     const searchItems = wikiRes.data.query?.search || [];
     const results = await Promise.all(searchItems.map(async (item: any) => {
@@ -206,43 +228,53 @@ export async function SparkSearch(
   onStage?: (stage: string) => void,
   isGuest: boolean = false
 ) {
-  const normalized = normalizeQuery(query);
-  const summaryPromise = getSummary(normalized);
-  const mediaPromise = getMedia(normalized);
+  try {
+    const normalized = normalizeQuery(query);
+    const summaryPromise = getSummary(normalized).catch(() => null);
+    const mediaPromise = getMedia(normalized).catch(() => []);
 
-  if (onStage) onStage(`Spark Edge: Indexing references for '${query}'...`);
-  const wikiResults = await searchReference(normalized);
-  
-  let webResults: SearchResult[] = [];
-  if (!isGuest) {
-    if (onStage) onStage(`Spark Mesh: Expanding global search for '${query}'...`);
-    webResults = await puterSearch(normalized);
-  } else {
-    // In guest mode, we skip general web search
-    if (onStage) onStage(`Guest Access: Retrieving knowledge for '${query}'...`);
+    if (onStage) onStage(`Spark Edge: Indexing references for '${query}'...`);
+    const wikiResults = await searchReference(normalized).catch(() => []);
+    
+    let webResults: SearchResult[] = [];
+    if (!isGuest) {
+      if (onStage) onStage(`Spark Mesh: Expanding global search for '${query}'...`);
+      webResults = await puterSearch(normalized).catch(() => []);
+    } else {
+      // In guest mode, we skip general web search
+      if (onStage) onStage(`Guest Access: Retrieving knowledge for '${query}'...`);
+    }
+
+    const queries = expandQuery(normalized);
+    const expansionResults = await searchReference(queries[1]).catch(() => []);
+
+    const processedCustom: SearchResult[] = customSources.map(cs => ({
+      title: cs.type === 'url' ? cs.value : 'Injected Context',
+      snippet: cs.type === 'text' ? cs.value : `Data from custom URL: ${cs.value}`,
+      url: cs.type === 'url' ? cs.value : '#custom',
+      source: cs.type === 'url' ? 'User Link' : 'User Text',
+      category: 'Reference'
+    }));
+
+    const allResults = [...wikiResults, ...webResults, ...expansionResults, ...processedCustom];
+    
+    if (allResults.length === 0) {
+      throw new SparkSearchError('Data Collection', 'No relevant knowledge fragments could be retrieved from the Spark Mesh.');
+    }
+
+    const ranked = deduplicateAndRank(allResults);
+    const summary = await summaryPromise;
+    const media = await mediaPromise;
+    
+    return {
+      summary,
+      sources: ranked,
+      context: buildContext(ranked),
+      queries,
+      media
+    };
+  } catch (error: any) {
+    if (error instanceof SparkSearchError) throw error;
+    throw new SparkSearchError('Pipeline', error.message || 'An unexpected error occurred in the Spark search pipeline.');
   }
-
-  const queries = expandQuery(normalized);
-  const expansionResults = await searchReference(queries[1]);
-
-  const processedCustom: SearchResult[] = customSources.map(cs => ({
-    title: cs.type === 'url' ? cs.value : 'Injected Context',
-    snippet: cs.type === 'text' ? cs.value : `Data from custom URL: ${cs.value}`,
-    url: cs.type === 'url' ? cs.value : '#custom',
-    source: cs.type === 'url' ? 'User Link' : 'User Text',
-    category: 'Reference'
-  }));
-
-  const allResults = [...wikiResults, ...webResults, ...expansionResults, ...processedCustom];
-  const ranked = deduplicateAndRank(allResults);
-  const summary = await summaryPromise;
-  const media = await mediaPromise;
-  
-  return {
-    summary,
-    sources: ranked,
-    context: buildContext(ranked),
-    queries,
-    media
-  };
 }

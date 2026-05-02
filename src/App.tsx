@@ -7,6 +7,7 @@ import { MessageItem } from './components/MessageItem';
 import { SourceManager } from './components/SourceManager';
 import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, User, LogOut, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Toaster, toast } from 'sonner';
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -111,6 +112,13 @@ export default function App() {
     }
   };
 
+  const handleClearChat = () => {
+    if (window.confirm("Are you sure you want to clear your current session? This cannot be undone.")) {
+      setMessages([]);
+      scrollToTop();
+    }
+  };
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -131,7 +139,9 @@ export default function App() {
 
   const handleSend = async (query: string) => {
     if (!(window as any).puter) {
-      alert("Spark Search is still initializing. Please wait a moment.");
+      toast.error("Spark Search is still initializing", {
+        description: "Please wait a moment while we configure the Edge Mesh."
+      });
       return;
     }
     const userMessage: ChatMessage = {
@@ -167,7 +177,12 @@ export default function App() {
         summary: summary || undefined,
         sources: sources,
         media: media,
-        thoughts: [],
+        thoughts: [
+          `Initializing Spark Protocol for query: "${query}"`,
+          `Edge Mesh searching for: "${query}"`,
+          `Scanning ${sources.length} intelligence nodes for authoritative fragments...`,
+          `Synthesizing real-time data nexus...`
+        ],
         relatedQueries: expandedQueries.filter(q => q.toLowerCase() !== query.toLowerCase()),
         status: 'thinking',
         timestamp: Date.now(),
@@ -186,7 +201,11 @@ export default function App() {
               return { 
                 ...msg, 
                 content: summary || "Knowledge retrieval complete. Review sources below.",
-                thoughts: ["Indexing Reference Library entries...", "Synthesizing digest summary...", "Finalizing knowledge map..."],
+                thoughts: [
+                  `Indexing Reference Library entries for "${query}"...`, 
+                  `Synthesizing digest summary...`, 
+                  `Finalizing knowledge map...`
+                ],
                 status: 'complete' 
               };
             }
@@ -225,8 +244,9 @@ export default function App() {
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `Error: ${error.message || "Something went wrong during the search process."}`,
+        content: `### ⚠️ Spark Pipeline Connection Alert\n\nThe Spark Edge Mesh encountered a protocol disruption. This is often caused by high network latency or search service limitations.\n\n**Details:** ${error.message || "Unknown synthesis interrupt."}\n\n**Suggestion:** Refine your query or check your connection parameters.`,
         timestamp: Date.now(),
+        status: 'complete'
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -408,7 +428,11 @@ export default function App() {
             )}
           </AnimatePresence>
           <div className="flex items-center gap-2">
-            <button className="p-2 sm:p-2.5 hover:bg-white/5 rounded-xl transition-all text-slate-400 hover:text-white border border-transparent hover:border-white/10">
+            <button 
+              onClick={handleClearChat}
+              className="p-2 sm:p-2.5 hover:bg-red-500/10 rounded-xl transition-all text-slate-400 hover:text-red-400 border border-transparent hover:border-red-500/20"
+              title="Clear Session"
+            >
               <History size={18} className="sm:w-5 sm:h-5" />
             </button>
             <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
@@ -515,6 +539,19 @@ export default function App() {
 
       {/* Fixed Output Input */}
       {messages.length > 0 && <ChatInput onSend={handleSend} isLoading={isLoading} isHome={false} />}
+      
+      <Toaster 
+        position="top-center" 
+        toastOptions={{
+          style: {
+            background: 'rgba(15, 23, 42, 0.8)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: '#f8fafc',
+            borderRadius: '16px',
+          },
+        }}
+      />
     </div>
   );
 }
