@@ -10,9 +10,10 @@ import { toast } from 'sonner';
 interface MessageItemProps {
   message: ChatMessage;
   onSend?: (query: string) => void;
+  isGuest?: boolean;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGuest }) => {
   const isAssistant = message.role === 'assistant';
   const [isThinkingOpen, setIsThinkingOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
@@ -82,15 +83,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (navigator.share) {
-      navigator.share({
-        title: 'Spark AI Analysis: ' + (message.content.substring(0, 50) + '...'),
-        text: message.content,
-        url: window.location.href
-      }).then(() => {
+      try {
+        await navigator.share({
+          title: 'Spark AI Analysis: ' + (message.content.substring(0, 50) + '...'),
+          text: message.content,
+          url: window.location.href
+        });
         toast.success('Successfully shared');
-      }).catch(console.error);
+      } catch (error: any) {
+        // AbortError means user cancelled the share dialog - we should ignore it
+        if (error.name !== 'AbortError') {
+          console.error('Sharing failed', error);
+          handleCopy();
+        }
+      }
     } else {
       handleCopy();
     }
@@ -217,6 +225,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                 </motion.div>
               )}
             </div>
+
 
             {/* Answer Region */}
             <div className="flex flex-col gap-6">
@@ -363,12 +372,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                           <span className="text-slate-200 line-clamp-2 md:line-clamp-none">{thought}</span>
                         </motion.div>
                       ))}
-                      {message.status !== 'complete' && (
-                        <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 animate-pulse mt-2 pl-6 italic">
-                          <div className="w-1.5 h-1.5 bg-brand/30 rounded-full mr-2" />
-                          <span>Generating synthesis...</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 animate-pulse mt-2 pl-6 italic">
+                        <div className="w-1.5 h-1.5 bg-brand/30 rounded-full mr-2" />
+                        <span>Generating synthesis...</span>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -489,6 +496,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend }) => 
                   )}
                 </div>
               )}
+
             </div>
           </div>
         )}

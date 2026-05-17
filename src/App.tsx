@@ -199,8 +199,28 @@ export default function App() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      if (isGuest) {
+    if (isGuest) {
         // Guest mode: Strictly Reference Library summary ONLY.
+        // Add conversational filler as requested
+        const prefix = "Hmm, let's break it down, here are the results I have found from the web.\n\n";
+        let guestContent = summary || "Knowledge retrieval complete. Review sources below.";
+        
+        // Add "Let's break this down and simplified" in the middle if possible
+        if (guestContent.includes("\n\n")) {
+          const parts = guestContent.split("\n\n");
+          const midIndex = Math.floor(parts.length / 2);
+          parts.splice(midIndex, 0, "*Let's break this down and simplified:*");
+          guestContent = parts.join("\n\n");
+        } else if (guestContent.length > 200) {
+          guestContent = guestContent.substring(0, guestContent.length / 2) + 
+            "\n\n*Let's break this down and simplified:*\n\n" + 
+            guestContent.substring(guestContent.length / 2);
+        } else {
+          guestContent = guestContent + "\n\n*Let's break this down and simplified.*";
+        }
+
+        const finalContent = prefix + guestContent;
+
         // Add a small delay for "Reasoning" effect in guest mode too
         await new Promise(r => setTimeout(r, 1500));
         
@@ -209,7 +229,7 @@ export default function App() {
             if (msg.id === assistantMessage.id) {
               return { 
                 ...msg, 
-                content: summary || "Knowledge retrieval complete. Review sources below.",
+                content: finalContent,
                 thoughts: [
                   `Indexing Reference Library entries for "${query}"...`, 
                   `Synthesizing digest summary...`, 
@@ -512,7 +532,7 @@ export default function App() {
           ) : (
             <div className="flex flex-col w-full pb-48 sm:pb-56">
               {messages.map((message) => (
-                <MessageItem key={message.id} message={message} onSend={handleSend} />
+                <MessageItem key={message.id} message={message} onSend={handleSend} isGuest={isGuest} />
               ))}
               <div ref={messagesEndRef} className="h-4" />
             </div>
