@@ -9,16 +9,18 @@ function normalizeQuery(q: string) {
   return q.trim().toLowerCase();
 }
 
-function expandQuery(q: string) {
+function expandQuery(q: string, isGuest: boolean = false) {
+  if (isGuest) {
+    return [q, `${q} history background`, `about ${q} overview`].slice(0, 3);
+  }
   const now = new Date();
   const dateStr = now.toLocaleDateString();
   const timeStr = now.toLocaleTimeString();
   return [
     q,
     `${q} latest news breaking ${dateStr}`,
-    `${q} real-time incidents updates ${dateStr}`,
-    `${q} current events and status ${dateStr} ${timeStr}`,
-    `recent developments about ${q} today`
+    `${q} current events updates today`,
+    `recent developments about ${q} 2026`
   ];
 }
 
@@ -46,71 +48,8 @@ async function searchWithRetry<T>(fn: () => Promise<T>, retries = 2, delay = 500
 // Re-implementing the robust search logic from server.ts for client-side execution
 async function searchReference(query: string): Promise<SearchResult[]> {
   try {
-    const wikiRes = await searchWithRetry(() => axios.get(WIKI_API, {
-      params: {
-        action: 'query',
-        list: 'search',
-        srsearch: query,
-        format: 'json',
-        origin: '*',
-        srlimit: 8
-      }
-    }));
-
-    const searchItems = wikiRes.data.query?.search || [];
-    const results = await Promise.all(searchItems.map(async (item: any) => {
-      const infoboxLinks: SearchResult[] = [];
-      
-      // Try Wikidata for Infobox links (CORS supported)
-      try {
-        const propsRes = await axios.get(WIKI_API, {
-          params: { action: 'query', prop: 'pageprops', titles: item.title, format: 'json', origin: '*' }
-        });
-        const pages = propsRes.data.query?.pages;
-        if (pages) {
-          const pageId = Object.keys(pages)[0];
-          const wikibaseItem = pages[pageId]?.pageprops?.wikibase_item;
-          if (wikibaseItem) {
-            const wdRes = await axios.get(WIKIDATA_API, {
-              params: { action: 'wbgetclaims', entity: wikibaseItem, format: 'json', origin: '*' }
-            });
-            const claims = wdRes.data.claims || {};
-            
-            const extractClaim = (prop: string, formatter: (val: string) => string) => {
-               const val = claims[prop]?.[0]?.mainsnak?.datavalue?.value;
-               if (typeof val === 'string') return formatter(val);
-               if (val?.id) return formatter(val.id);
-               return null;
-            };
-
-            const website = extractClaim('P856', (v) => v);
-            if (website) infoboxLinks.push({ title: `${item.title} Official Website`, url: website, source: 'Official Website', category: 'Reference', snippet: 'Official presence.' });
-
-            const twitter = extractClaim('P2002', (v) => `https://twitter.com/${v}`);
-            if (twitter) infoboxLinks.push({ title: `${item.title} on X (Twitter)`, url: twitter, source: 'Twitter Profile', category: 'Reference', snippet: 'Social media presence.' });
-          }
-        }
-      } catch (e) {}
-
-      let snippet = item.snippet.replace(/<[^>]*>?/gm, '');
-      try {
-        const detailRes = await axios.get(`${WIKI_REST}/page/summary/${encodeURIComponent(item.title)}`);
-        snippet = detailRes.data.extract || snippet;
-      } catch {}
-
-      return [
-        {
-          title: item.title,
-          snippet: snippet,
-          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
-          source: 'Reference Library',
-          category: 'Reference' as const
-        },
-        ...infoboxLinks
-      ];
-    }));
-
-    return results.flat();
+    const res = await axios.get('/api/search', { params: { q: query } });
+    return res.data || [];
   } catch (error) {
     console.error('Core search error:', error);
     return [];
@@ -119,75 +58,41 @@ async function searchReference(query: string): Promise<SearchResult[]> {
 
 async function getSummary(query: string): Promise<string | null> {
   try {
-    const searchRes = await axios.get(WIKI_API, {
-      params: { action: 'query', list: 'search', srsearch: query, format: 'json', origin: '*', srlimit: 1 }
-    });
-    const firstResult = searchRes.data.query?.search?.[0];
-    if (firstResult) {
-      const detailRes = await axios.get(WIKI_API, {
-        params: { action: 'query', prop: 'extracts', explaintext: 1, titles: firstResult.title, format: 'json', origin: '*' }
-      });
-      const pages = detailRes.data.query?.pages;
-      if (pages) {
-        const pageId = Object.keys(pages)[0];
-        let extract = pages[pageId]?.extract;
-        if (extract) return extract.replace(/[=*\\]/g, '').trim();
-      }
-    }
+    const res = await axios.get('/api/summary', { params: { q: query } });
+    return res.data?.extract || null;
   } catch (error) {}
   return null;
 }
 
 async function getMedia(query: string): Promise<MediaResult[]> {
   try {
-    const wikiRes = await axios.get(WIKI_API, {
-      params: {
-        action: 'query',
-        generator: 'search',
-        gsrsearch: query,
-        gsrlimit: 10,
-        prop: 'pageimages',
-        piprop: 'thumbnail',
-        pithumbsize: 600,
-        format: 'json',
-        origin: '*'
-      }
-    });
-
-    const pages = wikiRes.data.query?.pages || {};
-    return Object.values(pages)
-      .filter((page: any) => page.thumbnail?.source)
-      .map((page: any) => ({
-        type: 'image',
-        url: page.thumbnail.source,
-        thumbnail: page.thumbnail.source,
-        source: `Reference: ${page.title}`
-      }));
+    const res = await axios.get('/api/media', { params: { q: query } });
+    return res.data || [];
   } catch (error) {
     return [];
   }
 }
 
 async function puterSearch(query: string): Promise<SearchResult[]> {
+  if (typeof window === 'undefined') return [];
   const puter = (window as any).puter;
   if (!puter) return [];
   
   try {
-    // Attempt to use puter.web.search (modern) or puter.browser.search (fallback)
-    const searchFn = puter.web?.search || puter.browser?.search;
-    if (!searchFn) {
-      console.warn("Puter search module not found");
+    // Robust check for the search module availability (avoids initialization race conditions)
+    if (!puter.browser || typeof puter.browser.search !== 'function') {
+      console.warn("Spark Mesh: puter.browser.search module is not yet available in this environment.");
       return [];
     }
 
-    const results = await searchFn(query);
+    const results = await puter.browser.search(query);
     if (!results || !Array.isArray(results)) return [];
 
     return results.map((r: any) => ({
-      title: r.title || "Web Result",
-      snippet: r.snippet || r.description || "Contextual data retrieved from the web.",
+      title: r.title || "Reference Fragment",
+      snippet: r.snippet || r.description || "Insight indexed from the global spark mesh.",
       url: r.url || r.link || "#",
-      source: 'Spark Web Mesh',
+      source: r.source || 'Spark Mesh',
       category: 'Web' as const
     }));
   } catch (error) {
@@ -234,19 +139,28 @@ function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
     .slice(0, 20);
 }
 
-export function buildContext(results: SearchResult[]) {
-  const reference = results.filter(r => r.category === 'Reference');
-  const web = results.filter(r => r.category === 'Web' || !r.category);
+export function buildContext(results: SearchResult[], isGuest: boolean = false) {
+  // In guest mode, treat all results as reference to ensure they are parsed by the reference logic
+  const reference = isGuest ? results : results.filter(r => r.category === 'Reference');
+  const web = isGuest ? [] : results.filter(r => r.category !== 'Reference');
 
   let context = "### REFERENCE KNOWLEDGE REPOSITORY\n";
+  if (reference.length === 0) {
+    context += "No specific reference entities found for this query.\n";
+  }
   reference.forEach((r, i) => {
-    context += `[ENTITY ${i + 1}] source: ${r.source} | title: ${r.title}\nSUMMARY: ${r.snippet}\n\n`;
+    context += `[ENTITY ${i + 1}] source: ${r.source || 'Wikipedia'} | title: ${r.title}\nSUMMARY: ${r.snippet}\n\n`;
   });
 
-  context += "\n### REAL-TIME WEB MESH PROTOCOLS (2026 VERIFIED)\n";
-  web.forEach((r, i) => {
-    context += `[NODE ${reference.length + i + 1}] origin: ${r.source} | title: ${r.title}\nINTEL: ${r.snippet}\n\n`;
-  });
+  if (!isGuest) {
+    context += "\n### REAL-TIME WEB MESH PROTOCOLS (2026 VERIFIED)\n";
+    if (web.length === 0) {
+      context += "No real-time web nodes available for this context.\n";
+    }
+    web.forEach((r, i) => {
+      context += `[NODE ${reference.length + i + 1}] origin: ${r.source || 'Spark Mesh'} | title: ${r.title}\nINTEL: ${r.snippet}\n\n`;
+    });
+  }
 
   return context;
 }
@@ -261,24 +175,33 @@ export async function SparkSearch(
     const normalized = normalizeQuery(query);
     const summaryPromise = getSummary(normalized).catch(() => null);
     const mediaPromise = getMedia(normalized).catch(() => []);
-    const queries = expandQuery(normalized);
+    const queries = expandQuery(normalized, isGuest);
 
-    if (onStage) onStage(`Spark Edge: Mapping knowledge for '${query}'...`);
+    if (onStage) onStage(isGuest ? `Guest Access: Accessing Reference Library...` : `Spark Edge: Mapping knowledge for '${query}'...`);
+    
+    // Core Reference results (Wikipedia)
     const wikiResults = await searchReference(normalized).catch(() => []);
     
     let webResults: SearchResult[] = [];
     if (!isGuest) {
       if (onStage) onStage(`Spark Mesh: Deep crawling 2026 real-time network...`);
-      // Parallelized multi-query crawl for maximum power - using all expanded queries
       const webResultsArray = await Promise.all(
         queries.map(q => puterSearch(q).catch(() => []))
       );
       webResults = webResultsArray.flat();
     } else {
-      if (onStage) onStage(`Guest Access: Retrieving knowledge for '${query}'...`);
+      if (onStage) onStage(`Guest Access: Synthesizing reference knowledge...`);
+      // For guests, we expand the library search to provide more breadth
+      const expansionQueries = [
+        normalized,
+        ...queries.slice(1, 3)
+      ];
+      
+      const wikiExpansionArray = await Promise.all(
+        expansionQueries.map(q => searchReference(q).catch(() => []))
+      );
+      webResults = wikiExpansionArray.flat(); 
     }
-
-    const expansionResults = await searchReference(normalized).catch(() => []);
 
     const processedCustom: SearchResult[] = customSources.map(cs => ({
       title: cs.type === 'url' ? cs.value : 'Injected Context',
@@ -288,12 +211,12 @@ export async function SparkSearch(
       category: 'Reference'
     }));
 
-    const allResults = [...webResults, ...wikiResults, ...expansionResults, ...processedCustom];
+    const allResults = [...webResults, ...wikiResults, ...processedCustom];
     
     if (allResults.length === 0) {
       allResults.push({
         title: "Spark Intelligence Cache",
-        snippet: "Direct real-time search yielded limited fragments. Proceeding with internal knowledge synthesis for 2026: " + query,
+        snippet: "Direct real-time search yielded limited fragments. Proceeding with internal knowledge synthesis for: " + query,
         url: "#internal",
         source: "System",
         category: "Reference"
@@ -307,7 +230,7 @@ export async function SparkSearch(
     return {
       summary,
       sources: ranked,
-      context: buildContext(ranked),
+      context: buildContext(ranked, isGuest),
       queries,
       media
     };

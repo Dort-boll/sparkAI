@@ -415,22 +415,21 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                           </motion.div>
                         ))}
                         
-                        {message.status !== 'complete' && (
-                          <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex items-center gap-4 pl-1"
-                          >
+                        {/* Thinking status indicator */}
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex items-center gap-4 pl-1"
+                        >
                             <div className="w-4 h-4 rounded-full border-2 border-brand/20 border-t-brand animate-spin" />
                             <span className="text-xs text-brand font-black uppercase tracking-[0.3em] italic animate-pulse">
                               {message.status === 'thinking' ? 'Scanning Global Nodes...' : 'Crystallizing Final Logic...'}
                             </span>
                           </motion.div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  )}
               </AnimatePresence>
 
               {/* Post-completion Intel */}
@@ -467,6 +466,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                            </button>
                          ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Guest Mode Attribution */}
+                  {isGuest && (
+                    <div className="flex justify-center pt-8">
+                       <div className="px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full flex items-center gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                             Intelligence synthesized via Spark Reference Library (Wikipedia Guest Access)
+                          </span>
+                       </div>
                     </div>
                   )}
                 </div>

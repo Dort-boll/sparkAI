@@ -21,10 +21,10 @@ async function startServer() {
     try {
       const query = String(q);
       const headers = { 
-        'User-Agent': 'SparkAI/1.0 (Reasoning Engine; Personal Assistant; +https://ais-dev.ais-dev.cloud)' 
+        'User-Agent': 'SparkAI/1.0 (Reasoning Engine; +https://ais-dev.ais-dev.cloud)' 
       };
       
-      // Stage 1: Search Wikipedia
+      // Stage 1: Search Wikipedia with maximum relevance
       const wikiRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
         params: {
           action: 'query',
@@ -32,12 +32,27 @@ async function startServer() {
           srsearch: query,
           format: 'json',
           origin: '*',
-          srlimit: 5
+          srlimit: 12
         },
-        headers
+        headers,
+        timeout: 8000
       }).catch(() => ({ data: { query: { search: [] } } }));
 
       const wikiSearchItems = wikiRes.data.query?.search || [];
+      
+      // If no results, try opensearch for suggestions
+      if (wikiSearchItems.length === 0) {
+        const suggestRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+          params: { action: 'opensearch', search: query, limit: 5, format: 'json', origin: '*' }
+        }).catch(() => ({ data: [[], []] }));
+        
+        const suggestions = suggestRes.data[1] || [];
+        // Add suggestions to search items if any
+        for (const s of suggestions) {
+           wikiSearchItems.push({ title: s, snippet: `Direct suggestion for ${query}.` });
+        }
+      }
+
       const wikiResults = await Promise.all(wikiSearchItems.map(async (item: any) => {
         const infoboxLinks: { title: string, url: string, source: string }[] = [];
         
@@ -45,7 +60,8 @@ async function startServer() {
         try {
           const propsRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
             params: { action: 'query', prop: 'pageprops', titles: item.title, format: 'json', origin: '*' },
-            headers
+            headers,
+            timeout: 5000
           });
           const pages = propsRes.data.query?.pages;
           if (pages) {
@@ -54,7 +70,8 @@ async function startServer() {
             if (wikibaseItem) {
               const wdRes = await axios.get(`https://www.wikidata.org/w/api.php`, {
                 params: { action: 'wbgetclaims', entity: wikibaseItem, format: 'json', origin: '*' },
-                headers
+                headers,
+                timeout: 5000
               });
               const claims = wdRes.data.claims || {};
               
@@ -63,34 +80,21 @@ async function startServer() {
                  return val ? formatter(val) : null;
               };
 
-              // Official Website (P856)
               const website = extractClaim('P856', (v) => v);
               if (website) infoboxLinks.push({ title: `${item.title} Official Website`, url: website, source: 'Official Website' });
 
-              // Twitter (P2002)
               const twitter = extractClaim('P2002', (v) => `https://twitter.com/${v}`);
               if (twitter) infoboxLinks.push({ title: `${item.title} on X (Twitter)`, url: twitter, source: 'Twitter Profile' });
-              
-              // Instagram (P2053)
-              const instagram = extractClaim('P2053', (v) => `https://instagram.com/${v}`);
-              if (instagram) infoboxLinks.push({ title: `${item.title} on Instagram`, url: instagram, source: 'Instagram Profile' });
-
-              // YouTube (P2397)
-              const youtube = extractClaim('P2397', (v) => `https://youtube.com/channel/${v}`);
-              if (youtube) infoboxLinks.push({ title: `${item.title} on YouTube`, url: youtube, source: 'YouTube Channel' });
-
-              // IMDb (P345)
-              const imdb = extractClaim('P345', (v) => `https://www.imdb.com/title/${v}`);
-              if (imdb) infoboxLinks.push({ title: `${item.title} on IMDb`, url: imdb, source: 'IMDb Page' });
             }
           }
-        } catch (e) {
-          // Ignore wikidata errors
-        }
+        } catch (e) {}
 
-        let snippet = item.snippet.replace(/<[^>]*>?/gm, '');
+        let snippet = (item.snippet || '').replace(/<[^>]*>?/gm, '');
         try {
-          const detailRes = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title)}`, { headers });
+          const detailRes = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title)}`, { 
+          headers,
+          timeout: 5000 
+        });
           snippet = detailRes.data.extract || snippet;
         } catch {}
 
@@ -105,7 +109,7 @@ async function startServer() {
         infoboxLinks.forEach(link => {
           resultsToReturn.push({
             title: link.title,
-            snippet: `Verified external link retrieved from Wikidata's Infobox resources for ${item.title}.`,
+            snippet: `Official resource for ${item.title}.`,
             url: link.url,
             source: link.source,
             category: 'Reference'
@@ -115,27 +119,9 @@ async function startServer() {
         return resultsToReturn;
       }));
       
-      // Flatten the nested arrays from wikiResults
       const flatWikiResults = wikiResults.flat();
 
-      // Stage 2: DuckDuckGo
-      const ddgRes = await axios.get(`https://api.duckduckgo.com/`, {
-        params: { q: query, format: 'json', no_html: 1, skip_disambig: 1 },
-        headers
-      }).catch(() => ({ data: {} }));
-
-      const ddgResults = [];
-      if (ddgRes.data.AbstractText) {
-        ddgResults.push({
-          title: ddgRes.data.Heading || query,
-          snippet: ddgRes.data.AbstractText,
-          url: ddgRes.data.AbstractURL,
-          source: 'DuckDuckGo',
-          category: 'Web'
-        });
-      }
-
-      // Stage 3: Wikipedia Latest News (Recency injection)
+      // Stage 2: Wikipedia News Injection
       const newsResults: any[] = [];
       try {
         const d = new Date();
@@ -143,7 +129,10 @@ async function startServer() {
         const month = String(d.getUTCMonth() + 1).padStart(2, '0');
         const day = String(d.getUTCDate()).padStart(2, '0');
         
-        const newsRes = await axios.get(`https://en.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`, { headers });
+        const newsRes = await axios.get(`https://en.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`, { 
+          headers,
+          timeout: 8000 
+        });
         const news = newsRes.data.news || [];
         
         // Take the top 5 global breaking news stories from Wikipedia
@@ -153,11 +142,11 @@ async function startServer() {
           // Injecting the absolute latest news helps the model ground itself to the current date/reality.
           if (query.toLowerCase().includes('news') || query.toLowerCase().includes('latest') || n.story.toLowerCase().includes(query.toLowerCase())) {
             newsResults.push({
-              title: `Latest Update: ${n.story}`,
+              title: `Current Event: ${n.story}`,
               snippet: (n.links && n.links[0]?.extract) ? `${n.story} - ${n.links[0].extract}` : n.story,
               url: (n.links && n.links[0]?.content_urls?.desktop?.page) ? n.links[0].content_urls.desktop.page : 'https://en.wikipedia.org/wiki/Portal:Current_events',
               source: 'Wikipedia News',
-              category: 'News'
+              category: 'Other'
             });
           }
         });
@@ -165,7 +154,7 @@ async function startServer() {
         // Fallback or ignore if the featured feed fails
       }
 
-      res.json([...flatWikiResults, ...ddgResults, ...newsResults]);
+      res.json([...flatWikiResults, ...newsResults]);
     } catch (error) {
       console.error('Search error:', error);
       res.status(500).json({ error: 'Search failed' });
@@ -183,14 +172,16 @@ async function startServer() {
       // Fallback: Search first, then get the full extract of first result
       const searchRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
         params: { action: 'query', list: 'search', srsearch: query, format: 'json', origin: '*', srlimit: 1 },
-        headers
+        headers,
+        timeout: 5000
       });
       const firstResult = searchRes.data.query?.search?.[0];
       if (firstResult) {
         // Fetch the full page extract for massive elaboration (often 5000+ words)
         const detailRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
           params: { action: 'query', prop: 'extracts', explaintext: 1, titles: firstResult.title, format: 'json', origin: '*' },
-          headers
+          headers,
+          timeout: 8000
         });
         
         const pages = detailRes.data.query?.pages;
@@ -231,7 +222,8 @@ async function startServer() {
           format: 'json',
           origin: '*'
         },
-        headers
+        headers,
+        timeout: 8000
       });
 
       const pages = wikiRes.data.query?.pages || {};

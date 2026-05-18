@@ -47,41 +47,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Check if Puter is loaded, if not, wait
-    const checkPuter = setInterval(async () => {
-      const puter = (window as any).puter;
-      if (puter) {
-        clearInterval(checkPuter);
-        try {
-          const signedIn = await puter.auth.isSignedIn();
-          if (signedIn) {
-            const currentUser = await puter.auth.getUser();
-            setUser(currentUser);
-            setIsAuthed(true);
-          }
-        } catch (e) {
-          console.error("Auth check failed:", e);
-        }
-        setIsReady(true);
-        setStatus(null);
-      } else {
-        setStatus("Configuring Spark Edge...");
-      }
-    }, 500);
-    return () => clearInterval(checkPuter);
+    // Guest mode doesn't need Puter initially
+    // We only set isReady to true so the login screen shows up
+    setIsReady(true);
   }, []);
 
+  const loadPuter = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if ((window as any).puter) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://js.puter.com/v2/';
+      script.onload = () => resolve();
+      document.head.appendChild(script);
+    });
+  };
+
   const handleLogin = async () => {
-    const puter = (window as any).puter;
-    if (!puter) return;
     setIsLoggingIn(true);
     try {
+      await loadPuter();
+      const puter = (window as any).puter;
+      if (!puter) throw new Error("Puter failed to load");
+      
       await puter.auth.signIn();
       const currentUser = await puter.auth.getUser();
       setUser(currentUser);
       setProtocolType('user');
     } catch (e) {
       console.error("Sign in failed", e);
+      toast.error("Protocol Error", { description: "Failed to initialize Spark Edge Workspace." });
     } finally {
       setIsLoggingIn(false);
     }
@@ -101,23 +98,18 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (isGuest) {
-      setIsAuthed(false);
-      setIsGuest(false);
-      setUser(null);
-      setMessages([]); // Clear guest messages on logout
-      return;
-    }
+    setIsAuthed(false);
+    setIsGuest(false);
+    setUser(null);
+    setMessages([]);
+    
     const puter = (window as any).puter;
-    if (!puter) return;
-    try {
-      await puter.auth.signOut();
-      setIsAuthed(false);
-      setIsGuest(false);
-      setUser(null);
-      setMessages([]);
-    } catch (e) {
-      console.error("Sign out failed", e);
+    if (puter) {
+      try {
+        await puter.auth.signOut();
+      } catch (e) {
+        console.error("Sign out failed", e);
+      }
     }
   };
 
@@ -147,12 +139,6 @@ export default function App() {
   }, [messages, status, isLoading]);
 
   const handleSend = async (query: string) => {
-    if (!(window as any).puter) {
-      toast.error("Spark Search is still initializing", {
-        description: "Please wait a moment while we configure the Edge Mesh."
-      });
-      return;
-    }
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       role: 'user',
@@ -221,7 +207,7 @@ export default function App() {
           };
           return newMessages;
         });
-      }, isGuest);
+      }, isGuest, summary);
 
       if (result && typeof result === 'object' && result.relatedQueries) {
         setMessages(prev => prev.map(msg => 
