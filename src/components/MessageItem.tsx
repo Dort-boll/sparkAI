@@ -172,26 +172,41 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {message.sources.slice(0, isSourcesOpen ? 12 : 4).map((s, idx) => (
-                      <motion.a 
-                        key={idx}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.1 + (idx * 0.05), duration: 0.4 }}
-                        href={s.url} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="flex flex-col gap-2 p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-brand/30 rounded-xl transition-all group"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-brand/20">
-                            <span className="text-[8px] font-bold text-slate-500 group-hover:text-brand">{idx + 1}</span>
+                    {message.sources.slice(0, isSourcesOpen ? 12 : 4).map((s, idx) => {
+                      let displaySource = s.source;
+                      if (!displaySource && s.url) {
+                        try {
+                          if (s.url.startsWith('http')) {
+                            displaySource = new URL(s.url).hostname;
+                          } else {
+                            displaySource = 'Internal';
+                          }
+                        } catch (e) {
+                          displaySource = 'Reference';
+                        }
+                      }
+                      
+                      return (
+                        <motion.a 
+                          key={idx}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.1 + (idx * 0.05), duration: 0.4 }}
+                          href={s.url} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="flex flex-col gap-2 p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-brand/30 rounded-xl transition-all group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-brand/20">
+                              <span className="text-[8px] font-bold text-slate-500 group-hover:text-brand">{idx + 1}</span>
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase truncate group-hover:text-white">{displaySource || 'Reference'}</span>
                           </div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase truncate group-hover:text-white">{s.source || new URL(s.url).hostname}</span>
-                        </div>
-                        <h4 className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-tight group-hover:text-brand-light">{s.title}</h4>
-                      </motion.a>
-                    ))}
+                          <h4 className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-tight group-hover:text-brand-light">{s.title}</h4>
+                        </motion.a>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}

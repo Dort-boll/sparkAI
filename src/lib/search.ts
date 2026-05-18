@@ -48,8 +48,11 @@ async function searchWithRetry<T>(fn: () => Promise<T>, retries = 2, delay = 500
 // Re-implementing the robust search logic from server.ts for client-side execution
 async function searchReference(query: string): Promise<SearchResult[]> {
   try {
-    const res = await axios.get('/api/search', { params: { q: query } });
-    return res.data || [];
+    const res = await axios.get('/api/search', { 
+      params: { q: query },
+      timeout: 10000 
+    });
+    return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Core search error:', error);
     return [];
@@ -66,8 +69,11 @@ async function getSummary(query: string): Promise<string | null> {
 
 async function getMedia(query: string): Promise<MediaResult[]> {
   try {
-    const res = await axios.get('/api/media', { params: { q: query } });
-    return res.data || [];
+    const res = await axios.get('/api/media', { 
+      params: { q: query },
+      timeout: 10000 
+    });
+    return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     return [];
   }
