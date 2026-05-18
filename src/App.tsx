@@ -154,7 +154,7 @@ export default function App() {
       return;
     }
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       role: 'user',
       content: query,
       timestamp: Date.now(),
@@ -175,12 +175,13 @@ export default function App() {
       
       setStatus(`Refining ${referenceCount} Reference & ${webCount} Web insights...`);
 
-      // Artificial Delay for "Thinking" effect as requested (2 seconds)
-      await new Promise(r => setTimeout(r, 2000));
+      // Rapid sync effect
+      await new Promise(r => setTimeout(r, 400));
 
       // 2. Initialize Assistant Message
+      const assistantId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: assistantId,
         role: 'assistant',
         content: '',
         summary: summary || undefined,
@@ -199,74 +200,34 @@ export default function App() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-    if (isGuest) {
-        // Guest mode: Strictly Reference Library summary ONLY.
-        // Add conversational filler as requested
-        const prefix = "Hmm, let's break it down, here are the results I have found from the web.\n\n";
-        let guestContent = summary || "Knowledge retrieval complete. Review sources below.";
-        
-        // Add "Let's break this down and simplified" in the middle if possible
-        if (guestContent.includes("\n\n")) {
-          const parts = guestContent.split("\n\n");
-          const midIndex = Math.floor(parts.length / 2);
-          parts.splice(midIndex, 0, "*Let's break this down and simplified:*");
-          guestContent = parts.join("\n\n");
-        } else if (guestContent.length > 200) {
-          guestContent = guestContent.substring(0, guestContent.length / 2) + 
-            "\n\n*Let's break this down and simplified:*\n\n" + 
-            guestContent.substring(guestContent.length / 2);
-        } else {
-          guestContent = guestContent + "\n\n*Let's break this down and simplified.*";
-        }
-
-        const finalContent = prefix + guestContent;
-
-        // Add a small delay for "Reasoning" effect in guest mode too
-        await new Promise(r => setTimeout(r, 1500));
-        
-        setMessages((prev) => 
-          prev.map((msg) => {
-            if (msg.id === assistantMessage.id) {
-              return { 
-                ...msg, 
-                content: finalContent,
-                thoughts: [
-                  `Indexing Reference Library entries for "${query}"...`, 
-                  `Synthesizing digest summary...`, 
-                  `Finalizing knowledge map...`
-                ],
-                status: 'complete' 
-              };
-            }
-            return msg;
-          })
-        );
-        setIsLoading(false);
-        setStatus(null);
-        return;
-      }
-
+    // 3. Reasoning Phase
       setStatus("Spark Reasoning Core Active...");
+      const currentMessages = [...messages, userMessage];
+      const result = await generateAnswer(query, context, currentMessages, ({ content, thought, status: assistantStatus }) => {
+        setMessages((prev) => {
+          const index = prev.findIndex(m => m.id === assistantId);
+          if (index === -1) return prev;
 
-      // 3. Reasoning Phase (Only for non-guests)
-      await generateAnswer(query, context, messages, ({ content, thought, status: assistantStatus }) => {
-        setMessages((prev) => 
-          prev.map((msg) => {
-            if (msg.id === assistantMessage.id) {
-              const updatedThoughts = thought 
-                ? [...(msg.thoughts || []), thought] 
-                : msg.thoughts;
-              return { 
-                ...msg, 
-                content: content !== undefined ? content : msg.content,
-                thoughts: updatedThoughts,
-                status: assistantStatus || msg.status
-              };
-            }
-            return msg;
-          })
-        );
+          const newMessages = [...prev];
+          const msg = newMessages[index];
+          
+          const updatedContent = content !== undefined ? content : msg.content;
+          
+          newMessages[index] = {
+            ...msg,
+            content: updatedContent,
+            thoughts: thought ? [...(msg.thoughts || []), thought] : msg.thoughts,
+            status: assistantStatus || msg.status
+          };
+          return newMessages;
+        });
       }, isGuest);
+
+      if (result && typeof result === 'object' && result.relatedQueries) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantId ? { ...msg, relatedQueries: result.relatedQueries } : msg
+        ));
+      }
 
     } catch (error: any) {
       console.error("Critical Spark Intelligence Failure:", error);

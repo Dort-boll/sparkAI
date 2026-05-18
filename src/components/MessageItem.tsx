@@ -106,13 +106,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ 
-        duration: 0.8, 
-        ease: [0.23, 1, 0.32, 1],
-        layout: { duration: 0.4 }
+        duration: 0.5, 
+        ease: [0.23, 1, 0.32, 1]
       }}
       className={`flex flex-col gap-6 w-full max-w-4xl mx-auto py-8 px-4 sm:py-12 sm:px-6 ${isAssistant ? '' : 'border-b border-white/[0.03]'} transition-all duration-700`}
     >
@@ -151,45 +149,50 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
           <div className="flex flex-col gap-8">
             {/* Top Row: Sources & Media (Foundation) */}
             <div className="flex flex-col gap-6">
-              {/* Perplexity Style Source Pills - Always show if available */}
+              {/* Perplexity Style Source Pills & Cards - Always show if available */}
               {message.sources && message.sources.length > 0 && (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="flex flex-wrap gap-2"
+                  className="flex flex-col gap-4"
                 >
-                  <div className="w-full flex items-center gap-2 mb-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                    <Layers size={12} className="text-brand-light" /> Reference Sources
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                      <Layers size={14} className="text-brand-light" /> Reference Knowledge
+                    </div>
+                    {message.sources.length > 4 && (
+                       <button 
+                         onClick={() => setIsSourcesOpen(!isSourcesOpen)}
+                         className="text-[10px] font-bold text-brand hover:text-brand-light transition-colors"
+                       >
+                         {isSourcesOpen ? 'Hide' : `View all ${message.sources.length}`}
+                       </button>
+                    )}
                   </div>
-                  {message.sources.slice(0, 5).map((s, idx) => (
-                    <motion.a 
-                      key={idx}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.4 + (idx * 0.05), duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                      href={s.url} 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full py-1.5 px-3 text-[10px] transition-all group hover:border-brand/40"
-                    >
-                      <div className="w-3.5 h-3.5 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand/20">
-                        <SearchIcon size={8} className="text-slate-400 group-hover:text-brand" />
-                      </div>
-                      <span className="truncate max-w-[100px] text-slate-400 group-hover:text-white font-medium">{s.title}</span>
-                    </motion.a>
-                  ))}
-                  {message.sources.length > 5 && (
-                    <motion.button 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.7 }}
-                      onClick={() => setIsSourcesOpen(!isSourcesOpen)}
-                      className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full py-1.5 px-3 text-[10px] text-slate-500 hover:text-white transition-all"
-                    >
-                      +{message.sources.length - 5} more
-                    </motion.button>
-                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {message.sources.slice(0, isSourcesOpen ? 12 : 4).map((s, idx) => (
+                      <motion.a 
+                        key={idx}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.1 + (idx * 0.05), duration: 0.4 }}
+                        href={s.url} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="flex flex-col gap-2 p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-brand/30 rounded-xl transition-all group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-brand/20">
+                            <span className="text-[8px] font-bold text-slate-500 group-hover:text-brand">{idx + 1}</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase truncate group-hover:text-white">{s.source || new URL(s.url).hostname}</span>
+                        </div>
+                        <h4 className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-tight group-hover:text-brand-light">{s.title}</h4>
+                      </motion.a>
+                    ))}
+                  </div>
                 </motion.div>
               )}
 
@@ -231,15 +234,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
             <div className="flex flex-col gap-6">
               {/* Streaming Content */}
               <motion.div 
-                layout
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
                 className="relative group/content"
                 ref={containerRef}
               >
-                <div ref={contentRef} className="markdown-body text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30">
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                <div ref={contentRef} className="markdown-body text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30 min-h-[2em]">
+                  {message.content ? (
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  ) : (message.status === 'writing' || message.status === 'thinking') ? (
+                    <div className="flex flex-col gap-4 animate-pulse">
+                      <div className="h-4 bg-white/10 rounded-xl w-3/4" />
+                      <div className="h-4 bg-white/10 rounded-xl w-5/6" />
+                      <div className="h-4 bg-white/10 rounded-xl w-2/3" />
+                    </div>
+                  ) : null}
                 </div>
                 
                 <AnimatePresence>
@@ -328,167 +338,132 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                 )}
               </motion.div>
 
-              {/* Thinking/Reasoning Indicator */}
+              {/* Thinking Indicator (Advanced Perplexity Style) */}
               <AnimatePresence mode="wait">
                 {message.status !== 'complete' && (
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98, height: 0, marginBottom: 0 }}
-                    transition={{ duration: 0.4, ease: "circOut" }}
-                    className="glass-card !p-5 !rounded-2xl border-brand/20 bg-brand/[0.02] mb-6 overflow-hidden relative shadow-[0_0_40px_rgba(59,130,246,0.05)]"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.3 } }}
+                    className="flex flex-col gap-6 mb-12"
                   >
-                    <div className="absolute top-0 left-0 w-1 h-full bg-brand animate-pulse" />
-                    <div className="flex items-center gap-3 mb-4 justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-10 h-10 rounded-full border-2 border-brand/20 border-t-brand animate-spin" />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Sparkles size={14} className="text-brand animate-pulse" />
-                          </div>
+                    <div className="flex items-center gap-5">
+                      <div className="relative">
+                        <motion.div 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                          className="w-10 h-10 rounded-full border-2 border-brand/10 border-t-brand shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <motion.div 
+                             animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+                             transition={{ duration: 2, repeat: Infinity }}
+                             className="w-2.5 h-2.5 bg-brand rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]" 
+                          />
                         </div>
-                        <span className="text-[10px] font-bold text-brand uppercase tracking-[0.2em] animate-pulse">
-                          Spark Analytical Engine
-                        </span>
                       </div>
-                      <div className="px-2.5 py-1 bg-brand/10 border border-brand/20 rounded-lg text-[9px] font-bold text-brand-light uppercase tracking-tighter">
-                         Nvidia Nemotron Active
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-brand uppercase tracking-[0.4em] animate-pulse">
+                            Spark Reasoning Engine
+                          </span>
+                          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-black text-red-500 animate-pulse">
+                            <div className="w-1 h-1 rounded-full bg-red-500" />
+                            LIVE INTEL
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                             Neural Mesh active
+                           </span>
+                           <div className="w-1 h-1 rounded-full bg-slate-700" />
+                           <span className="text-[10px] text-brand-light font-bold uppercase tracking-tighter">
+                             Real-Time Verification
+                           </span>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex flex-col gap-2.5 relative">
-                      <div className="absolute left-[7px] top-0 bottom-0 w-[1px] bg-gradient-to-b from-brand/40 to-transparent" />
-                      {message.thoughts && message.thoughts.length > 0 && message.thoughts.slice(-3).map((thought, idx) => (
+
+                    <div className="relative pl-12">
+                      {/* Vertical Progress Line with dynamic fill */}
+                      <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-white/5 overflow-hidden rounded-full">
                         <motion.div 
-                          key={idx}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className="flex items-center gap-3 text-[11px] font-medium text-slate-400 pl-6 relative"
-                        >
-                          <div className="absolute left-[3px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#020617] border border-brand/40 flex items-center justify-center z-10">
-                            <div className="w-1.5 h-1.5 bg-brand rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                          </div>
-                          <span className="text-slate-200 line-clamp-2 md:line-clamp-none">{thought}</span>
-                        </motion.div>
-                      ))}
-                      <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 animate-pulse mt-2 pl-6 italic">
-                        <div className="w-1.5 h-1.5 bg-brand/30 rounded-full mr-2" />
-                        <span>Generating synthesis...</span>
+                          animate={{ 
+                            height: message.status === 'writing' ? '100%' : '50%',
+                            opacity: [0.2, 0.5, 0.2]
+                          }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="w-full bg-brand shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-5">
+                        {message.thoughts && message.thoughts.length > 0 && message.thoughts.map((thought, idx) => (
+                          <motion.div 
+                            key={idx}
+                            initial={{ opacity: 0, x: -15, filter: 'blur(8px)' }}
+                            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
+                            className="flex items-center gap-4"
+                          >
+                            <div className="w-6 h-6 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
+                              <Check size={12} className="text-brand-light" />
+                            </div>
+                            <span className="text-sm text-slate-200 font-medium tracking-tight">
+                              {thought}
+                            </span>
+                          </motion.div>
+                        ))}
+                        
+                        {message.status !== 'complete' && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex items-center gap-4 pl-1"
+                          >
+                            <div className="w-4 h-4 rounded-full border-2 border-brand/20 border-t-brand animate-spin" />
+                            <span className="text-xs text-brand font-black uppercase tracking-[0.3em] italic animate-pulse">
+                              {message.status === 'thinking' ? 'Scanning Global Nodes...' : 'Crystallizing Final Logic...'}
+                            </span>
+                          </motion.div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Post-completion Detail Sections */}
+              {/* Post-completion Intel */}
               {message.status === 'complete' && (
-                <div className="flex flex-col gap-10 mt-4">
-                  {/* Reasoning Path (Toggleable) */}
-                  {message.thoughts && message.thoughts.length > 0 && (
-                    <div className="flex flex-col gap-4">
-                      <button 
-                        onClick={() => setIsThinkingOpen(!isThinkingOpen)}
-                        className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-300 uppercase tracking-widest transition-colors w-fit"
-                      >
-                        <Sparkles size={14} className={isThinkingOpen ? "text-brand" : ""} />
-                        {isThinkingOpen ? "Hide Strategy" : "View Reasoning Path"}
-                        <ChevronDown size={14} className={`transition-transform duration-300 ${isThinkingOpen ? "rotate-180" : ""}`} />
-                      </button>
-                      
-                      <AnimatePresence>
-                        {isThinkingOpen && (
-                          <motion.div 
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden"
-                          >
-                            <div className="p-5 flex flex-col gap-3 relative">
-                              <div className="absolute left-7 top-6 bottom-6 w-[1px] bg-gradient-to-b from-brand/40 to-transparent" />
-                              {message.thoughts.map((thought, idx) => (
-                                <div key={idx} className="flex items-start gap-4 text-xs font-medium text-slate-400 pl-2">
-                                  <div className="mt-1 w-2 h-2 rounded-full bg-[#020617] border border-brand/40 flex items-center justify-center flex-shrink-0 z-10 relative">
-                                    <div className="w-1 h-1 bg-brand rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                                  </div>
-                                  <span className="leading-relaxed">{thought}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
-
-                  {/* Summary / Digest */}
+                <div className="flex flex-col gap-10 mt-6">
+                  {/* Summary / Digest - Move this higher if present? No, let's keep it here or remove if answer is enough */}
                   {message.summary && (
                     <motion.div 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2, duration: 0.7 }}
-                      className="bg-brand/5 border-l-2 border-brand/40 p-6 rounded-r-2xl"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="bg-brand/5 border-l-2 border-brand/40 p-5 rounded-r-xl"
                     >
-                      <div className="flex items-center gap-2 mb-3 text-[10px] font-bold text-brand-light uppercase tracking-[0.2em]">
-                        <SearchIcon size={14} /> Knowledge Synthesis
-                      </div>
-                      <p className="text-slate-400 text-sm leading-relaxed italic">
+                      <p className="text-slate-400 text-sm leading-relaxed italic italic">
                         {message.summary}
                       </p>
                     </motion.div>
-                  )}
-
-                  {/* Knowledge Map (Collapsed by default) */}
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="flex flex-col gap-4">
-                      <div 
-                        onClick={() => setIsSourcesOpen(!isSourcesOpen)}
-                        className="flex items-center justify-between group cursor-pointer select-none px-4 py-3 border border-white/5 bg-white/[0.01] rounded-2xl transition-all hover:bg-white/[0.03] hover:border-white/10"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Layers size={14} className="text-slate-500" />
-                          <h3 className="text-xs font-bold text-slate-400 tracking-tight flex items-center gap-2">
-                            Comprehensive Knowledge Map
-                            <span className="text-[10px] text-slate-600 font-bold bg-white/5 px-2 py-0.5 rounded-full">{message.sources.length}</span>
-                          </h3>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full border border-white/5 flex items-center justify-center text-slate-500 transition-all duration-500 ${isSourcesOpen ? 'rotate-180 text-white' : ''}`}>
-                          <ChevronDown size={14} />
-                        </div>
-                      </div>
-
-                      <AnimatePresence>
-                        {isSourcesOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="p-4 border border-white/5 bg-white/[0.005] rounded-2xl">
-                               <SourceList sources={message.sources} />
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
                   )}
 
                   {/* Related Queries */}
                   {message.relatedQueries && message.relatedQueries.length > 0 && (
                     <div className="flex flex-col gap-3 pt-6 border-t border-white/5">
                       <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                         <Layers size={14} /> Explore Further
+                         <MessageSquarePlus size={14} className="text-brand-light" /> Further Discovery
                       </div>
                       <div className="flex flex-wrap gap-2">
                          {message.relatedQueries.map((rq, idx) => (
                            <button 
                              key={idx} 
                              onClick={() => onSend && onSend(rq)}
-                             className="flex items-center gap-3 bg-white/[0.02] border border-white/5 rounded-xl py-2.5 px-4 hover:bg-brand/10 hover:border-brand/30 transition-all text-xs text-slate-400 group"
+                             className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 hover:bg-brand hover:text-white hover:border-brand transition-all text-xs font-medium group"
                            >
                               {rq}
-                              <ArrowRight size={12} className="text-slate-600 group-hover:text-brand" />
+                              <ArrowRight size={12} className="text-slate-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
                            </button>
                          ))}
                       </div>

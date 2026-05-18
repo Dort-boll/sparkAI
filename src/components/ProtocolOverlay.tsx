@@ -32,7 +32,7 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
     if (step < currentSteps.length) {
       const timer = setTimeout(() => {
         setStep(prev => prev + 1);
-      }, 1200);
+      }, 800);
       return () => clearTimeout(timer);
     } else {
       const finishTimer = setTimeout(() => {

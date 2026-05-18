@@ -10,12 +10,15 @@ function normalizeQuery(q: string) {
 }
 
 function expandQuery(q: string) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString();
+  const timeStr = now.toLocaleTimeString();
   return [
     q,
-    `comprehensive technical deep dive into ${q}`,
-    `latest scientific breakthroughs and developments in ${q}`,
-    `global expert perspective and analysis on ${q}`,
-    `${q} historical context and future trajectory`
+    `${q} latest news breaking ${dateStr}`,
+    `${q} real-time incidents updates ${dateStr}`,
+    `${q} current events and status ${dateStr} ${timeStr}`,
+    `recent developments about ${q} today`
   ];
 }
 
@@ -50,7 +53,7 @@ async function searchReference(query: string): Promise<SearchResult[]> {
         srsearch: query,
         format: 'json',
         origin: '*',
-        srlimit: 5
+        srlimit: 8
       }
     }));
 
@@ -167,25 +170,38 @@ async function getMedia(query: string): Promise<MediaResult[]> {
 
 async function puterSearch(query: string): Promise<SearchResult[]> {
   const puter = (window as any).puter;
-  if (!puter || !puter.browser?.search) return [];
+  if (!puter) return [];
   
   try {
-    const results = await puter.browser.search(query);
-    return (results || []).map((r: any) => ({
-      title: r.title,
-      snippet: r.snippet || r.description || "Detailed web content retrieved for analysis.",
-      url: r.url || r.link,
-      source: 'Spark Mesh',
+    // Attempt to use puter.web.search (modern) or puter.browser.search (fallback)
+    const searchFn = puter.web?.search || puter.browser?.search;
+    if (!searchFn) {
+      console.warn("Puter search module not found");
+      return [];
+    }
+
+    const results = await searchFn(query);
+    if (!results || !Array.isArray(results)) return [];
+
+    return results.map((r: any) => ({
+      title: r.title || "Web Result",
+      snippet: r.snippet || r.description || "Contextual data retrieved from the web.",
+      url: r.url || r.link || "#",
+      source: 'Spark Web Mesh',
       category: 'Web' as const
     }));
   } catch (error) {
-    console.error('Spark Search error:', error);
+    console.error('Spark Mesh Web Search Error:', error);
     return [];
   }
 }
 
 function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const todayStr = now.toLocaleDateString();
   const seen = new Set();
+  
   return results
     .filter(r => {
       if (!r.url || seen.has(r.url)) return false;
@@ -194,29 +210,42 @@ function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
     })
     .map(r => {
       let score = 0;
-      if (r.url.includes("wikipedia")) score += 20;
-      if (r.url.includes(".edu")) score += 15;
-      if (r.url.includes(".gov")) score += 18;
-      if (r.url.includes("github")) score += 10;
-      if (r.snippet?.length > 120) score += 5;
+      const text = (r.title + ' ' + r.snippet).toLowerCase();
+      
+      // Maximum Recency Bias (Today)
+      if (text.includes(todayStr.toLowerCase())) score += 50;
+      
+      // Recency bias (General)
+      if (text.includes("2026")) score += 30;
+      if (text.includes("2025")) score += 20;
+      if (text.includes("live") || text.includes("real-time") || text.includes("current")) score += 20;
+      if (text.includes("breaking") || text.includes("incident") || text.includes("update") || text.includes("just now") || text.includes("minutes ago")) score += 25;
+
+      // Authority bias
+      if (r.url.includes("wikipedia")) score += 5;
+      if (r.url.includes(".gov") || r.url.includes(".edu")) score += 15;
+      if (r.url.includes("reuters.com") || r.url.includes("apnews.com") || r.url.includes("bbc.co.uk") || r.url.includes("cnn.com") || r.url.includes("bloomberg.com")) score += 25;
+      
+      if (r.snippet?.length > 150) score += 5;
+      
       return { ...r, score };
     })
     .sort((a, b) => (b.score || 0) - (a.score || 0))
-    .slice(0, 15);
+    .slice(0, 20);
 }
 
 export function buildContext(results: SearchResult[]) {
   const reference = results.filter(r => r.category === 'Reference');
   const web = results.filter(r => r.category === 'Web' || !r.category);
 
-  let context = "--- PRIMARY REFERENCE SOURCES ---\n";
+  let context = "### REFERENCE KNOWLEDGE REPOSITORY\n";
   reference.forEach((r, i) => {
-    context += `[Source ${i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
+    context += `[ENTITY ${i + 1}] source: ${r.source} | title: ${r.title}\nSUMMARY: ${r.snippet}\n\n`;
   });
 
-  context += "\n--- SUPPLEMENTAL WEB INTELLIGENCE ---\n";
+  context += "\n### REAL-TIME WEB MESH PROTOCOLS (2026 VERIFIED)\n";
   web.forEach((r, i) => {
-    context += `[Source ${reference.length + i + 1}] (${r.source})\nTitle: ${r.title}\nContent: ${r.snippet}\n\n`;
+    context += `[NODE ${reference.length + i + 1}] origin: ${r.source} | title: ${r.title}\nINTEL: ${r.snippet}\n\n`;
   });
 
   return context;
@@ -232,21 +261,24 @@ export async function SparkSearch(
     const normalized = normalizeQuery(query);
     const summaryPromise = getSummary(normalized).catch(() => null);
     const mediaPromise = getMedia(normalized).catch(() => []);
+    const queries = expandQuery(normalized);
 
-    if (onStage) onStage(`Spark Edge: Indexing references for '${query}'...`);
+    if (onStage) onStage(`Spark Edge: Mapping knowledge for '${query}'...`);
     const wikiResults = await searchReference(normalized).catch(() => []);
     
     let webResults: SearchResult[] = [];
     if (!isGuest) {
-      if (onStage) onStage(`Spark Mesh: Expanding global search for '${query}'...`);
-      webResults = await puterSearch(normalized).catch(() => []);
+      if (onStage) onStage(`Spark Mesh: Deep crawling 2026 real-time network...`);
+      // Parallelized multi-query crawl for maximum power - using all expanded queries
+      const webResultsArray = await Promise.all(
+        queries.map(q => puterSearch(q).catch(() => []))
+      );
+      webResults = webResultsArray.flat();
     } else {
-      // In guest mode, we skip general web search
       if (onStage) onStage(`Guest Access: Retrieving knowledge for '${query}'...`);
     }
 
-    const queries = expandQuery(normalized);
-    const expansionResults = await searchReference(queries[1]).catch(() => []);
+    const expansionResults = await searchReference(normalized).catch(() => []);
 
     const processedCustom: SearchResult[] = customSources.map(cs => ({
       title: cs.type === 'url' ? cs.value : 'Injected Context',
@@ -256,13 +288,12 @@ export async function SparkSearch(
       category: 'Reference'
     }));
 
-    const allResults = [...wikiResults, ...webResults, ...expansionResults, ...processedCustom];
+    const allResults = [...webResults, ...wikiResults, ...expansionResults, ...processedCustom];
     
-    // If absolutely no results, don't throw - provide a synthetic placeholder so the reasoning engine can still function
     if (allResults.length === 0) {
       allResults.push({
         title: "Spark Intelligence Cache",
-        snippet: "Direct real-time search yielded limited fragments. Proceeding with internal knowledge synthesis for: " + query,
+        snippet: "Direct real-time search yielded limited fragments. Proceeding with internal knowledge synthesis for 2026: " + query,
         url: "#internal",
         source: "System",
         category: "Reference"
@@ -282,7 +313,6 @@ export async function SparkSearch(
     };
   } catch (error: any) {
     console.error("Search Pipeline Error:", error);
-    // Even on error, return something to avoid breaking the UI flow
     return {
       summary: "Protocol Alert: Intelligence retrieval interrupted. Synthesizing from available fragments.",
       sources: [{ title: "System Fallback", snippet: "Error: " + (error.message || "Unknown disrupt"), url: "#", source: "System" }],
