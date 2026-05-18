@@ -45,35 +45,162 @@ async function searchWithRetry<T>(fn: () => Promise<T>, retries = 2, delay = 500
   }
 }
 
-// Re-implementing the robust search logic from server.ts for client-side execution
+// Core search logic migrated from server-side to client-side for pure frontend execution
 async function searchReference(query: string): Promise<SearchResult[]> {
   try {
-    const res = await axios.get('/api/search', { 
-      params: { q: query },
-      timeout: 10000 
-    });
-    return Array.isArray(res.data) ? res.data : [];
-  } catch (error) {
-    console.error('Core search error:', error);
+    // Stage 1: Fast Search for Titles
+    const wikiRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+      params: {
+        action: 'query',
+        list: 'search',
+        srsearch: query,
+        format: 'json',
+        origin: '*',
+        srlimit: 8
+      },
+      timeout: 10000
+    }).catch(() => ({ data: { query: { search: [] } } }));
+
+    let searchItems = wikiRes.data?.query?.search || [];
+    
+    // Secondary suggestion if dry
+    if (searchItems.length === 0) {
+      const suggestRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+        params: { action: 'opensearch', search: query, limit: 3, format: 'json', origin: '*' },
+        timeout: 5000
+      }).catch(() => ({ data: [[], []] }));
+      
+      const titles = suggestRes.data?.[1] || [];
+      searchItems = titles.map((t: string) => ({ title: t }));
+    }
+
+    const wikiResults: SearchResult[] = [];
+    
+    if (searchItems.length > 0) {
+      // Stage 2: Batch Extract Fetch (MUCH faster than individual calls)
+      const titlesToFetch = searchItems.slice(0, 6).map((item: any) => item.title).join('|');
+      const batchRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+        params: {
+          action: 'query',
+          prop: 'extracts',
+          exintro: 1,
+          explaintext: 1,
+          titles: titlesToFetch,
+          format: 'json',
+          origin: '*'
+        },
+        timeout: 10000
+      }).catch(() => ({ data: { query: { pages: {} } } }));
+
+      const pages = batchRes.data?.query?.pages || {};
+      
+      Object.values(pages).forEach((page: any) => {
+        if (page.title && !page.missing) {
+          wikiResults.push({
+            title: page.title,
+            snippet: page.extract || `Information about ${page.title}.`,
+            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
+            source: 'Wikipedia',
+            category: 'Reference'
+          });
+        }
+      });
+    }
+
+    // Stage 3: Modern Global Grounding (News)
+    const newsResults: SearchResult[] = [];
+    try {
+      const now = new Date();
+      const y = now.getUTCFullYear();
+      const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(now.getUTCDate()).padStart(2, '0');
+      
+      const newsRes = await axios.get(`https://en.wikipedia.org/api/rest_v1/feed/featured/${y}/${m}/${d}`, { 
+        timeout: 8000 
+      }).catch(() => null);
+      
+      const news = newsRes?.data?.news || [];
+      
+      news.slice(0, 8).forEach((n: any) => {
+        if (query.toLowerCase().trim().length < 3 || n.story.toLowerCase().includes(query.toLowerCase()) || query.toLowerCase().includes('news')) {
+          newsResults.push({
+            title: `Global Insight: ${n.story.substring(0, 80)}...`,
+            snippet: n.story,
+            url: n.links?.[0]?.content_urls?.desktop?.page || 'https://en.wikipedia.org/wiki/Portal:Current_events',
+            source: 'Wiki News',
+            category: 'Other'
+          });
+        }
+      });
+    } catch (e) {}
+
+    return [...wikiResults, ...newsResults];
+  } catch (error: any) {
+    console.error('Core search error in Spark Pipeline:', error.message);
     return [];
   }
 }
 
 async function getSummary(query: string): Promise<string | null> {
   try {
-    const res = await axios.get('/api/summary', { params: { q: query } });
-    return res.data?.extract || null;
+    const searchRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+      params: { action: 'query', list: 'search', srsearch: query, format: 'json', origin: '*', srlimit: 1 },
+      timeout: 5000
+    }).catch(() => ({ data: { query: { search: [] } } }));
+
+    const firstResult = searchRes.data.query?.search?.[0];
+    if (firstResult) {
+      const detailRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+        params: { action: 'query', prop: 'extracts', explaintext: 1, titles: firstResult.title, format: 'json', origin: '*' },
+        timeout: 8000
+      }).catch(() => null);
+      
+      const pages = detailRes?.data?.query?.pages;
+      if (pages) {
+        const pageId = Object.keys(pages)[0];
+        let extract = pages[pageId]?.extract;
+        if (extract) {
+          extract = extract.replace(/[=*\\]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+          return extract;
+        }
+      }
+    }
   } catch (error) {}
   return null;
 }
 
 async function getMedia(query: string): Promise<MediaResult[]> {
   try {
-    const res = await axios.get('/api/media', { 
-      params: { q: query },
-      timeout: 10000 
+    const wikiRes = await axios.get(`https://en.wikipedia.org/w/api.php`, {
+      params: {
+        action: 'query',
+        generator: 'search',
+        gsrsearch: query,
+        gsrlimit: 10,
+        prop: 'pageimages',
+        piprop: 'thumbnail',
+        pithumbsize: 600,
+        format: 'json',
+        origin: '*'
+      },
+      timeout: 8000
     });
-    return Array.isArray(res.data) ? res.data : [];
+
+    const pages = wikiRes.data.query?.pages || {};
+    const media: MediaResult[] = [];
+    
+    Object.values(pages).forEach((page: any) => {
+      if (page.thumbnail && page.thumbnail.source) {
+        media.push({
+          type: 'image',
+          url: page.thumbnail.source,
+          thumbnail: page.thumbnail.source,
+          source: `Wikipedia: ${page.title}`
+        });
+      }
+    });
+
+    return media;
   } catch (error) {
     return [];
   }
@@ -221,8 +348,8 @@ export async function SparkSearch(
     
     if (allResults.length === 0) {
       allResults.push({
-        title: "Spark Intelligence Cache",
-        snippet: "Direct real-time search yielded limited fragments. Proceeding with internal knowledge synthesis for: " + query,
+        title: "Spark Intelligence Node",
+        snippet: `Direct reference search for "${query}" yielded limited fragments. Proceeding with generalized internal synthesis.`,
         url: "#internal",
         source: "System",
         category: "Reference"
