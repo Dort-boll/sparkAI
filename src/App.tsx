@@ -87,8 +87,10 @@ export default function App() {
       const persistedMessages = localStorage.getItem('spark_messages');
       const persistedCustomSources = localStorage.getItem('spark_customSources');
 
-      if (persistedAuthed === 'true') {
+      if (persistedAuthed === 'true' && persistedGuest !== 'true') {
         setIsAuthed(true);
+        // Load Puter ONLY for Workspace sessions on recovery
+        loadPuter().catch(err => console.error("Workspace recovery Puter load failed:", err));
       }
       if (persistedGuest === 'true') {
         setIsGuest(true);
@@ -106,8 +108,6 @@ export default function App() {
       console.error("Local storage recovery issue:", e);
     } finally {
       setIsReady(true);
-      // Proactively load Puter script on mount so it is always ready for Guest or User sessions
-      loadPuter().catch(err => console.error("Proactive Puter load failed:", err));
     }
   }, []);
 
@@ -184,12 +184,6 @@ export default function App() {
     setUser({ username: "Guest User", isGuest: true });
     // Reset messages when switching to guest mode to ensure reference-only context
     setMessages([]);
-    // Ensure Puter script is loaded for AI synthesis in Guest mode
-    try {
-      await loadPuter();
-    } catch (e) {
-      console.error("Puter load failed in guest mode login:", e);
-    }
   };
 
   const finishProtocol = () => {

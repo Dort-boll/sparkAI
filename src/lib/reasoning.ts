@@ -187,12 +187,13 @@ CORE PROTOCOLS:
     let lastUpdate = 0;
     const UPDATE_INTERVAL = 80; // ms throttle for smoother UI
     
-    // Check if Puter AI is ready to use so we can provide real complete AI answers for Guests too
-    const isAIReady = puter && puter.ai && typeof puter.ai.chat === 'function';
-
-    if (isGuest && !isAIReady) {
+    // Strictly enforce high-fidelity local synthesis for Guest Mode
+    // This bypasses neural reasoning checks to ensure Puter.js is not utilized in guest state
+    if (isGuest) {
       return await executeFallbackFlow(query, context, summary, onUpdate);
     }
+
+    const isAIReady = puter && puter.ai && typeof puter.ai.chat === 'function';
 
     if (!isGuest && !puter) {
       throw new Error("Spark Edge Workspace not initialized. Please enter deep-access mode.");
