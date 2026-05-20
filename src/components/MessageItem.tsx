@@ -189,9 +189,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                       return (
                         <motion.a 
                           key={idx}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.1 + (idx * 0.05), duration: 0.4 }}
+                          initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                          transition={{ delay: 0.15 + (idx * 0.05), duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
                           href={s.url} 
                           target="_blank" 
                           rel="noreferrer" 
@@ -258,7 +258,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                 <div ref={contentRef} className="markdown-body text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30 min-h-[2em]">
                   {message.content ? (
                     <ReactMarkdown>{message.content}</ReactMarkdown>
-                  ) : (message.status === 'writing' || message.status === 'thinking') ? (
+                  ) : message.status === 'writing' ? (
                     <div className="flex flex-col gap-4 animate-pulse">
                       <div className="h-4 bg-white/10 rounded-xl w-3/4" />
                       <div className="h-4 bg-white/10 rounded-xl w-5/6" />
@@ -355,7 +355,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
 
               {/* Thinking Indicator (Advanced Perplexity Style) */}
               <AnimatePresence mode="wait">
-                {message.status !== 'complete' && (
+                {message.status === 'thinking' && (
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -404,7 +404,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                       <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-white/5 overflow-hidden rounded-full">
                         <motion.div 
                           animate={{ 
-                            height: message.status === 'writing' ? '100%' : '50%',
+                            height: '50%',
                             opacity: [0.2, 0.5, 0.2]
                           }}
                           transition={{ duration: 2, repeat: Infinity }}
@@ -438,7 +438,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                         >
                             <div className="w-4 h-4 rounded-full border-2 border-brand/20 border-t-brand animate-spin" />
                             <span className="text-xs text-brand font-black uppercase tracking-[0.3em] italic animate-pulse">
-                              {message.status === 'thinking' ? 'Scanning Global Nodes...' : 'Crystallizing Final Logic...'}
+                              Scanning Global Nodes...
                             </span>
                           </motion.div>
                         </div>
@@ -490,7 +490,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                        <div className="px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full flex items-center gap-3">
                           <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                             Intelligence synthesized via Spark Reference Library (Wikipedia Guest Access)
+                             Intelligence synthesized via Spark Reference Network
                           </span>
                        </div>
                     </div>

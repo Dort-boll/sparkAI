@@ -5,6 +5,25 @@ const WIKI_API = 'https://en.wikipedia.org/w/api.php';
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
 const WIKI_REST = 'https://en.wikipedia.org/api/rest_v1';
 
+function cleanText(str: string): string {
+  if (!str) return '';
+  // Strip HTML tags
+  let cleaned = str.replace(/<[^>]*>?/gm, '');
+  // Decode common HTML entities
+  cleaned = cleaned
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#039;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+  return cleaned.trim();
+}
+
 function normalizeQuery(q: string) {
   return q.trim().toLowerCase();
 }
@@ -100,7 +119,7 @@ async function searchReference(query: string): Promise<SearchResult[]> {
             title: page.title,
             snippet: page.extract || `Information about ${page.title}.`,
             url: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-            source: 'Wikipedia',
+            source: 'Reference Node',
             category: 'Reference'
           });
         }
@@ -122,12 +141,14 @@ async function searchReference(query: string): Promise<SearchResult[]> {
       const news = newsRes?.data?.news || [];
       
       news.slice(0, 8).forEach((n: any) => {
-        if (query.toLowerCase().trim().length < 3 || n.story.toLowerCase().includes(query.toLowerCase()) || query.toLowerCase().includes('news')) {
+        const plainStory = cleanText(n.story);
+        if (query.toLowerCase().trim().length < 3 || plainStory.toLowerCase().includes(query.toLowerCase()) || query.toLowerCase().includes('news')) {
+          const trimmedTitle = plainStory.length > 70 ? `${plainStory.substring(0, 70)}...` : plainStory;
           newsResults.push({
-            title: `Global Insight: ${n.story.substring(0, 80)}...`,
-            snippet: n.story,
+            title: trimmedTitle,
+            snippet: plainStory,
             url: n.links?.[0]?.content_urls?.desktop?.page || 'https://en.wikipedia.org/wiki/Portal:Current_events',
-            source: 'Wiki News',
+            source: 'Global News Node',
             category: 'Other'
           });
         }
@@ -195,7 +216,7 @@ async function getMedia(query: string): Promise<MediaResult[]> {
           type: 'image',
           url: page.thumbnail.source,
           thumbnail: page.thumbnail.source,
-          source: `Wikipedia: ${page.title}`
+          source: `Reference Node: ${page.title}`
         });
       }
     });
@@ -248,7 +269,10 @@ function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
     })
     .map(r => {
       let score = 0;
-      const text = (r.title + ' ' + r.snippet).toLowerCase();
+      // Clean HTML tags and entities from BOTH title and snippet
+      const cleanTitle = cleanText(r.title);
+      const cleanSnippet = cleanText(r.snippet);
+      const text = (cleanTitle + ' ' + cleanSnippet).toLowerCase();
       
       // Maximum Recency Bias (Today)
       if (text.includes(todayStr.toLowerCase())) score += 50;
@@ -264,9 +288,14 @@ function deduplicateAndRank(results: SearchResult[]): SearchResult[] {
       if (r.url.includes(".gov") || r.url.includes(".edu")) score += 15;
       if (r.url.includes("reuters.com") || r.url.includes("apnews.com") || r.url.includes("bbc.co.uk") || r.url.includes("cnn.com") || r.url.includes("bloomberg.com")) score += 25;
       
-      if (r.snippet?.length > 150) score += 5;
+      if (cleanSnippet && cleanSnippet.length > 150) score += 5;
       
-      return { ...r, score };
+      return { 
+        ...r, 
+        title: cleanTitle, 
+        snippet: cleanSnippet, 
+        score 
+      };
     })
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, 20);
@@ -282,7 +311,7 @@ export function buildContext(results: SearchResult[], isGuest: boolean = false) 
     context += "No specific reference entities found for this query.\n";
   }
   reference.forEach((r, i) => {
-    context += `[ENTITY ${i + 1}] source: ${r.source || 'Wikipedia'} | title: ${r.title}\nSUMMARY: ${r.snippet}\n\n`;
+    context += `[ENTITY ${i + 1}] source: ${r.source || 'Reference Node'} | title: ${r.title}\nSUMMARY: ${r.snippet}\n\n`;
   });
 
   if (!isGuest) {
@@ -293,6 +322,14 @@ export function buildContext(results: SearchResult[], isGuest: boolean = false) 
     web.forEach((r, i) => {
       context += `[NODE ${reference.length + i + 1}] origin: ${r.source || 'Spark Mesh'} | title: ${r.title}\nINTEL: ${r.snippet}\n\n`;
     });
+  }
+
+  // Under guest mode rules, strictly throttle and limit context depth to exactly 8000 words
+  if (isGuest) {
+    const words = context.trim().split(/\s+/);
+    if (words.length > 8000) {
+      context = words.slice(0, 8000).join(' ') + '\n\n[Context limited to exactly 8000 words in guest mode]';
+    }
   }
 
   return context;
@@ -312,7 +349,7 @@ export async function SparkSearch(
 
     if (onStage) onStage(isGuest ? `Guest Access: Accessing Reference Library...` : `Spark Edge: Mapping knowledge for '${query}'...`);
     
-    // Core Reference results (Wikipedia)
+    // Core Reference results
     const wikiResults = await searchReference(normalized).catch(() => []);
     
     let webResults: SearchResult[] = [];

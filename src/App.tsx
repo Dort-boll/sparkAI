@@ -46,11 +46,85 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Global script error catcher to prevent crashes and reloads
   useEffect(() => {
-    // Guest mode doesn't need Puter initially
-    // We only set isReady to true so the login screen shows up
-    setIsReady(true);
+    const handleError = (event: ErrorEvent) => {
+      const msg = event.message || '';
+      if (
+        msg.toLowerCase().includes('script error') || 
+        msg.toLowerCase().includes('puter') ||
+        event.filename?.includes('puter.com')
+      ) {
+        console.warn("Suppressed external script error to prevent app crash:", event);
+        event.preventDefault();
+        return true;
+      }
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason?.message || '';
+      if (reason.toLowerCase().includes('puter') || reason.toLowerCase().includes('script error')) {
+        console.warn("Suppressed unhandled promise rejection from external script:", event.reason);
+        event.preventDefault();
+        return true;
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
   }, []);
+
+  // Restore session state on initial mount
+  useEffect(() => {
+    try {
+      const persistedAuthed = localStorage.getItem('spark_isAuthed');
+      const persistedGuest = localStorage.getItem('spark_isGuest');
+      const persistedUser = localStorage.getItem('spark_user');
+      const persistedMessages = localStorage.getItem('spark_messages');
+      const persistedCustomSources = localStorage.getItem('spark_customSources');
+
+      if (persistedAuthed === 'true') {
+        setIsAuthed(true);
+      }
+      if (persistedGuest === 'true') {
+        setIsGuest(true);
+      }
+      if (persistedUser) {
+        setUser(JSON.parse(persistedUser));
+      }
+      if (persistedMessages) {
+        setMessages(JSON.parse(persistedMessages));
+      }
+      if (persistedCustomSources) {
+        setCustomSources(JSON.parse(persistedCustomSources));
+      }
+    } catch (e) {
+      console.error("Local storage recovery issue:", e);
+    } finally {
+      setIsReady(true);
+      // Proactively load Puter script on mount so it is always ready for Guest or User sessions
+      loadPuter().catch(err => console.error("Proactive Puter load failed:", err));
+    }
+  }, []);
+
+  // Save session state to localStorage on any state mutation
+  useEffect(() => {
+    if (isReady) {
+      try {
+        localStorage.setItem('spark_isAuthed', String(isAuthed));
+        localStorage.setItem('spark_isGuest', String(isGuest));
+        localStorage.setItem('spark_user', user ? JSON.stringify(user) : '');
+        localStorage.setItem('spark_messages', JSON.stringify(messages));
+        localStorage.setItem('spark_customSources', JSON.stringify(customSources));
+      } catch (e) {
+        console.error("Local storage write error:", e);
+      }
+    }
+  }, [isAuthed, isGuest, user, messages, customSources, isReady]);
 
   const loadPuter = (): Promise<void> => {
     return new Promise((resolve) => {
@@ -58,9 +132,30 @@ export default function App() {
         resolve();
         return;
       }
+      
+      const existingScript = document.querySelector('script[src*="puter.com"]');
+      if (existingScript) {
+        let check = setInterval(() => {
+          if ((window as any).puter) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => {
+          clearInterval(check);
+          resolve();
+        }, 3000);
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://js.puter.com/v2/';
+      script.async = true;
       script.onload = () => resolve();
+      script.onerror = () => {
+        console.warn("Puter script blocked or failed to load. Spark will use its high-precision local fallback safely.");
+        resolve();
+      };
       document.head.appendChild(script);
     });
   };
@@ -84,11 +179,17 @@ export default function App() {
     }
   };
 
-  const handleGuestLogin = () => {
+  const handleGuestLogin = async () => {
     setProtocolType('guest');
     setUser({ username: "Guest User", isGuest: true });
     // Reset messages when switching to guest mode to ensure reference-only context
     setMessages([]);
+    // Ensure Puter script is loaded for AI synthesis in Guest mode
+    try {
+      await loadPuter();
+    } catch (e) {
+      console.error("Puter load failed in guest mode login:", e);
+    }
   };
 
   const finishProtocol = () => {
@@ -102,6 +203,18 @@ export default function App() {
     setIsGuest(false);
     setUser(null);
     setMessages([]);
+    setCustomSources([]);
+    
+    // Clear session storage values on explicit logout
+    try {
+      localStorage.removeItem('spark_isAuthed');
+      localStorage.removeItem('spark_isGuest');
+      localStorage.removeItem('spark_user');
+      localStorage.removeItem('spark_messages');
+      localStorage.removeItem('spark_customSources');
+    } catch (e) {
+      console.error("Local storage logout cleanup issue:", e);
+    }
     
     const puter = (window as any).puter;
     if (puter) {
@@ -129,12 +242,20 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isAtBottom && messages.length > 0 && isLoading) {
-      // Only auto-scroll while loading/streaming
-      const handle = requestAnimationFrame(() => {
-        scrollToBottom('auto');
-      });
-      return () => cancelAnimationFrame(handle);
+    if (messages.length > 0 && isLoading) {
+      // Synchronously check distance from bottom before scrolling
+      const scrollY = window.scrollY || window.pageYOffset;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const distanceFromBottom = scrollHeight - (scrollY + clientHeight);
+
+      // Only auto-scroll if user is actively near the bottom (within 300px)
+      if (distanceFromBottom < 300) {
+        const handle = requestAnimationFrame(() => {
+          scrollToBottom('auto');
+        });
+        return () => cancelAnimationFrame(handle);
+      }
     }
   }, [messages, status, isLoading]);
 
@@ -146,14 +267,42 @@ export default function App() {
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      sources: [],
+      media: [],
+      thoughts: [
+        `Registering Spark Pipeline for query: "${query}"...`
+      ],
+      status: 'thinking',
+      timestamp: Date.now() + 50,
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
     setStatus("Spark Pipeline Active...");
 
     try {
-      // 1. Staged Search Phase
+      // 1. Staged Search Phase with live dynamic thought injection
       const { sources, context, summary, media, queries: expandedQueries } = await SparkSearch(query, customSources, (stage) => {
         setStatus(stage);
+        setMessages((prev) => {
+          const index = prev.findIndex(m => m.id === assistantId);
+          if (index === -1) return prev;
+          const newMessages = [...prev];
+          const msg = newMessages[index];
+          const currentThoughts = msg.thoughts || [];
+          if (!currentThoughts.includes(stage)) {
+            newMessages[index] = {
+              ...msg,
+              thoughts: [...currentThoughts, stage]
+            };
+          }
+          return newMessages;
+        });
       }, isGuest);
       
       const referenceCount = sources.filter(s => s.category === 'Reference').length;
@@ -161,32 +310,26 @@ export default function App() {
       
       setStatus(`Refining ${referenceCount} Reference & ${webCount} Web insights...`);
 
+      setMessages((prev) => {
+        const index = prev.findIndex(m => m.id === assistantId);
+        if (index === -1) return prev;
+        const newMessages = [...prev];
+        const msg = newMessages[index];
+        newMessages[index] = {
+          ...msg,
+          sources: sources,
+          media: media,
+          summary: summary || undefined,
+          relatedQueries: expandedQueries.filter(q => q.toLowerCase() !== query.toLowerCase()),
+          thoughts: [...(msg.thoughts || []), `Identified<sup>[mesh]</sup> ${referenceCount} authoritative reference nodes and ${webCount} web fragments.`]
+        };
+        return newMessages;
+      });
+
       // Rapid sync effect
       await new Promise(r => setTimeout(r, 400));
 
-      // 2. Initialize Assistant Message
-      const assistantId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const assistantMessage: ChatMessage = {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        summary: summary || undefined,
-        sources: sources,
-        media: media,
-        thoughts: [
-          `Initializing Spark Protocol for query: "${query}"`,
-          `Edge Mesh searching for: "${query}"`,
-          `Scanning ${sources.length} intelligence nodes for authoritative fragments...`,
-          `Synthesizing real-time data nexus...`
-        ],
-        relatedQueries: expandedQueries.filter(q => q.toLowerCase() !== query.toLowerCase()),
-        status: 'thinking',
-        timestamp: Date.now(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-    // 3. Reasoning Phase
+      // 2. Reasoning Phase
       setStatus("Spark Reasoning Core Active...");
       const currentMessages = [...messages, userMessage];
       const result = await generateAnswer(query, context, currentMessages, ({ content, thought, status: assistantStatus }) => {
@@ -199,10 +342,15 @@ export default function App() {
           
           const updatedContent = content !== undefined ? content : msg.content;
           
+          let newThoughts = msg.thoughts || [];
+          if (thought && !newThoughts.includes(thought)) {
+            newThoughts = [...newThoughts, thought];
+          }
+          
           newMessages[index] = {
             ...msg,
             content: updatedContent,
-            thoughts: thought ? [...(msg.thoughts || []), thought] : msg.thoughts,
+            thoughts: newThoughts,
             status: assistantStatus || msg.status
           };
           return newMessages;
@@ -217,14 +365,28 @@ export default function App() {
 
     } catch (error: any) {
       console.error("Critical Spark Intelligence Failure:", error);
-      const errorMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: `### 🔮 Intelligence Protocol Divergence\n\nThe Spark Mesh encountered an unexpected disruption while synthesizing data for your request. \n\n**Common causes:**\n- Temporary cloud network latency\n- Highly specific queries with limited public context\n- Search provider rate limiting\n\n**Diagnostic Trace:** ${error.message || "Unknown synthesis interrupt."}\n\n*Please try refining your query or re-submitting in a few moments.*`,
-        timestamp: Date.now(),
-        status: 'complete'
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      const errorContent = `### 🔮 Intelligence Protocol Divergence\n\nThe Spark Mesh encountered an unexpected disruption while synthesizing data for your request. \n\n**Common causes:**\n- Temporary cloud network latency\n- Highly specific queries with limited public context\n- Search provider rate limiting\n\n**Diagnostic Trace:** ${error.message || "Unknown synthesis interrupt."}\n\n*Please try refining your query or re-submitting in a few moments.*`;
+      
+      setMessages((prev) => {
+        const index = prev.findIndex(m => m.id === assistantId);
+        if (index !== -1) {
+          const newMessages = [...prev];
+          newMessages[index] = {
+            ...newMessages[index],
+            content: errorContent,
+            status: 'complete'
+          };
+          return newMessages;
+        } else {
+          return [...prev, {
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: errorContent,
+            timestamp: Date.now(),
+            status: 'complete'
+          }];
+        }
+      });
       toast.error("Pipeline Protocol Interrupted", {
         description: "Viewing diagnostic report in latest assistant response."
       });
