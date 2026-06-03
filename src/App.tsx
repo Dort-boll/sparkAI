@@ -8,9 +8,10 @@ import { SourceManager } from './components/SourceManager';
 import { ActionTooltip } from './components/ActionTooltip';
 import { Logo } from './components/Brand';
 import { ProtocolOverlay } from './components/ProtocolOverlay';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, User, LogOut, Layers } from 'lucide-react';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, User, LogOut, Layers, Shield, Zap, Globe, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -24,8 +25,74 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [protocolType, setProtocolType] = useState<'guest' | 'user' | null>(null);
+
+  // Simulation states for the interactive landing homepage preview
+  const [demoQuery, setDemoQuery] = useState('');
+  const [demoStatus, setDemoStatus] = useState<string | null>(null);
+  const [demoResponse, setDemoResponse] = useState<string | null>(null);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [isDemoStreaming, setIsDemoStreaming] = useState(false);
+  const [isSuggestionsDropdownOpen, setIsSuggestionsDropdownOpen] = useState(false);
+  const [selectedDemoTab, setSelectedDemoTab] = useState<'reasoning' | 'sources' | 'privacy'>('reasoning');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleDemoSearch = async (queryToSimulate: string) => {
+    if (!queryToSimulate.trim() || isDemoLoading) return;
+    setDemoQuery(queryToSimulate);
+    setIsDemoLoading(true);
+    setDemoResponse(null);
+    setDemoStatus("Thinking");
+    
+    // Cycle simulated statuses
+    const t1 = setTimeout(() => {
+      setDemoStatus("Searching the web");
+    }, 1500);
+
+    const t2 = setTimeout(() => {
+      setDemoStatus("Analyzing context");
+    }, 3000);
+
+    const t3 = setTimeout(() => {
+      let simulatedText = `### 🔮 High-Precision Synthesis: "${queryToSimulate}"\n\n- **Edge Network Extraction**: Queried 24 decentralized public reference indices to synthesize state context.\n- **Neural Verification**: Real-time evaluation confirms state consistency under secure sandbox environments.\n- **Workspace Advantage**: Spark operates directly inside your secure container to preserve key anonymity.\n\n*To search the live web and unlock continuous infinite reasoning streams, connect your workspace securely below.*`;
+      
+      const qLower = queryToSimulate.toLowerCase();
+      if (qLower.includes('genomic') || qLower.includes('crispr')) {
+        simulatedText = `### 🧬 CRISPR Genomics Synthesis\n\n- **Target Enrichment Accuracy**: Recent breakthroughs in Cas9 base editing demonstrate a **99.8% precision rate** in high-density genomic arrays.\n- **Off-Target Mitigation**: Real-time structural analysis of sequence nodes reduces unexpected DNA cleavages by more than **85x** under laboratory conditions.\n- **Therapeutic Applications**: Ready clinical trials present customized therapeutic delivery avenues for ultra-rare metabolic disorders.\n\n*To search the live web and unlock continuous infinite reasoning streams, connect your workspace securely below.*`;
+      } else if (qLower.includes('battery') || qLower.includes('solid-state') || qLower.includes('lithium')) {
+        simulatedText = `### 🔋 Solid-State Polymer Lithium Synthesis\n\n- **Volumetric Density Peak**: Prototypes achieved **480 Wh/kg** using pristine silicon-dominant dendrite-suppressive anodes.\n- **Electrolyte Longevity**: High-temperature solid ceramic separators show stable performance past **1,200 continuous cycles** with negligible capacity degradation.\n- **Scalability Metrics**: Transitioning from pilot roll-to-roll production onto gigafactory lines is expected by Q3 2027.\n\n*To search the live web and unlock continuous infinite reasoning streams, connect your workspace securely below.*`;
+      } else if (qLower.includes('exoplanet') || qLower.includes('kepler') || qLower.includes('habit')) {
+        simulatedText = `### 🪐 Exoplanet Kepler-186f Habitability Index\n\n- **Radiative Balance State**: Sub-stellar radiation from its primary M-dwarf star corresponds to approximately **32% of Earth's solar constant**.\n- **Atmospheric Model**: Computer simulations predict stable greenhouse retention profiles, indicating high probability of localized surface liquid water states.\n- **Orbital Synchrony**: The orbital period is estimated at **129.9 terrestrial days**, suggesting low tidally locked core constraints.\n\n*To search the live web and unlock continuous infinite reasoning streams, connect your workspace securely below.*`;
+      }
+
+      setDemoResponse("");
+      setIsDemoLoading(false);
+      setDemoStatus(null);
+      setIsDemoStreaming(true);
+
+      // Stream the response word by word for absolute maximum visual smoothness
+      const words = simulatedText.split(" ");
+      let currentWordIndex = 0;
+      let streamedString = "";
+      
+      const streamTimer = setInterval(() => {
+        if (currentWordIndex < words.length) {
+          streamedString += (currentWordIndex === 0 ? "" : " ") + words[currentWordIndex];
+          setDemoResponse(streamedString);
+          currentWordIndex++;
+        } else {
+          clearInterval(streamTimer);
+          setIsDemoStreaming(false);
+        }
+      }, 15);
+    }, 4500);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  };
 
   const addCustomSource = (source: Omit<CustomSource, 'id'>) => {
     setCustomSources(prev => [...prev, { ...source, id: Date.now().toString() }]);
@@ -153,7 +220,7 @@ export default function App() {
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => {
-        console.warn("Puter script blocked or failed to load. Spark will use its high-precision local fallback safely.");
+        console.warn("External script blocked or failed to load. Spark will use its high-precision local fallback safely.");
         resolve();
       };
       document.head.appendChild(script);
@@ -173,7 +240,7 @@ export default function App() {
       setProtocolType('user');
     } catch (e) {
       console.error("Sign in failed", e);
-      toast.error("Protocol Error", { description: "Failed to initialize Spark Edge Workspace." });
+      toast.error("Protocol Error", { description: "Failed to initialize Spark Search Workspace." });
     } finally {
       setIsLoggingIn(false);
     }
@@ -392,7 +459,7 @@ export default function App() {
 
   if (!isReady) {
     return (
-       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-[#020617]">
+       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-[#000000]">
          <motion.div
            animate={{ 
              scale: [0.9, 1.1, 0.9],
@@ -407,7 +474,7 @@ export default function App() {
          <div className="flex flex-col items-center gap-4">
            <div className="flex items-center gap-3">
              <div className="w-2 h-2 rounded-full bg-brand animate-ping" />
-             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">{status || "Configuring Spark Edge"}</span>
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">{status || "Configuring Spark Search"}</span>
            </div>
          </div>
        </div>
@@ -416,15 +483,13 @@ export default function App() {
 
   if (!isAuthed) {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#020617]">
-        {/* Background Decorative Elements */}
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-brand/5 blur-[160px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-purple-500/5 blur-[160px] rounded-full pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] pointer-events-none mix-blend-overlay" />
-
-        {/* Ambient Grid */}
-        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
-          style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,1) 1px, transparent 0)', backgroundSize: '48px 48px' }} 
+      <div className="min-h-[100dvh] flex flex-col bg-[#000000] text-slate-100 relative overflow-x-hidden selection:bg-brand/20 selection:text-white">
+        {/* Background Decorative Ambient Radials */}
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-brand/10 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[#3b82f6]/10 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.12] pointer-events-none mix-blend-overlay" />
+        <div className="absolute inset-0 z-0 opacity-[0.02] pointer-events-none" 
+          style={{ backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, #ffffff 1px, transparent 0)', backgroundSize: '36px 36px' }} 
         />
 
         <AnimatePresence>
@@ -433,113 +498,331 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-          className="flex flex-col items-center justify-center text-center max-w-2xl w-full relative z-10"
-        >
-           <motion.div 
-             initial={{ scale: 0.8, opacity: 0, rotate: -20 }}
-             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-             transition={{ duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
-             className="relative mb-12"
-           >
-              <Logo size={100} />
-              <div className="absolute -inset-4 bg-brand/20 blur-3xl rounded-full -z-10 animate-pulse" />
-           </motion.div>
-           
-           <div className="overflow-hidden mb-6">
-           <motion.h1 
-               initial={{ y: 100, opacity: 0 }}
-               animate={{ y: 0, opacity: 1 }}
-               transition={{ delay: 0.2, duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
-               className="text-7xl sm:text-9xl font-display font-bold text-white tracking-tighter mb-4"
-             >
-               Spark
-             </motion.h1>
-             <motion.div
-               initial={{ width: 0 }}
-               animate={{ width: '100%' }}
-               transition={{ delay: 1, duration: 1.5, ease: "easeInOut" }}
-               className="h-px bg-gradient-to-r from-transparent via-brand to-transparent opacity-50 mb-8"
-             />
-           </div>
-           
-           <motion.p 
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: 0.5, duration: 0.8 }}
-             className="text-lg sm:text-2xl text-slate-400 font-medium leading-relaxed mb-16 px-8 max-w-lg mx-auto"
-           >
-             Synthesize the world's <span className="text-white">knowledge</span> in real-time. Powered by the <span className="text-brand-light font-bold">Spark Edge Mesh</span>.
-           </motion.p>
-           
-           <motion.div 
-             initial={{ opacity: 0, y: 30 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: 0.7, duration: 0.8 }}
-             className="flex flex-col sm:flex-row gap-5 w-full px-8"
-           >
-             <button 
-               onClick={handleLogin}
-               disabled={isLoggingIn}
-               className="flex-1 relative group overflow-hidden bg-white text-slate-900 font-bold text-base rounded-[1.25rem] py-5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl hover:shadow-brand/40 duration-500 disabled:opacity-70 disabled:pointer-events-none"
-             >
-               <span className="relative z-10 flex items-center justify-center gap-3">
-                  {isLoggingIn ? <Cpu className="animate-spin" size={20} /> : <User size={20} />}
-                  {isLoggingIn ? "Syncing..." : "Enter Workspace"}
-               </span>
-               <div className="absolute inset-0 bg-gradient-to-r from-brand-light/20 to-transparent translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-700" />
-             </button>
- 
-             <button 
-               onClick={handleGuestLogin}
-               disabled={isLoggingIn}
-               className="flex-1 relative group overflow-hidden bg-white/5 border border-white/10 text-white font-bold text-base rounded-[1.25rem] py-5 transition-all hover:scale-[1.02] active:scale-[0.98] hover:bg-white/10 hover:border-white/20 duration-500 disabled:opacity-70 disabled:pointer-events-none backdrop-blur-md"
-             >
-               <span className="relative z-10 flex items-center justify-center gap-3">
-                  <SearchIcon size={20} className="text-brand-light group-hover:text-white transition-colors duration-500" />
-                  Continue as Guest
-               </span>
-               <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-             </button>
-           </motion.div>
- 
-           <motion.div
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             transition={{ delay: 1.2, duration: 1.5 }}
-             className="mt-20 flex flex-col items-center gap-4"
-           >
-              <div className="text-[10px] uppercase tracking-[0.6em] font-bold text-slate-600 mb-2">Technological stack</div>
-              <div className="flex items-center gap-8 px-8 py-3 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-sm grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-700">
-                <span className="text-xs font-black text-slate-300 tracking-tighter">SPARK_MESH</span>
-                <div className="h-4 w-[1px] bg-white/10" />
-                <span className="text-xs font-black text-slate-300 tracking-tighter">EDGE_SYNC</span>
-              </div>
-           </motion.div>
-        </motion.div>
+        {/* Sticky Glassmorphic Header */}
+        <header className="nav-blur px-6 sm:px-10 py-4 sm:py-5 flex justify-between items-center z-50 sticky top-0 w-full transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <Logo size={36} className="text-white animate-pulse" />
+            <div className="flex flex-col">
+              <span className="text-lg font-bold font-display tracking-tight text-white">Spark Search</span>
+              <span className="text-[9px] font-black tracking-widest text-brand-light uppercase">DECIDIOUS CORE</span>
+            </div>
+          </div>
+          <button
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white tracking-wide transition-all active:scale-95 duration-200"
+          >
+            {isLoggingIn ? <Cpu className="animate-spin w-4 h-4" /> : <User className="w-4 h-4 text-brand-light" />}
+            <span className="hidden sm:inline">Connect Workspace</span>
+            <span className="sm:hidden">Connect</span>
+          </button>
+        </header>
+
+        {/* Interactive Main Body container */}
+        <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-12 sm:py-20 flex flex-col items-center justify-center relative z-10">
+          
+          {/* Main Hero Header */}
+          <div className="text-center mb-12 sm:mb-16 select-none">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-brand/10 to-brand-light/10 border border-brand/20 px-3 py-1.5 rounded-full mb-6 text-[10px] sm:text-xs font-bold tracking-wider text-brand-light uppercase"
+            >
+              <Sparkles size={12} className="text-brand animate-pulse" />
+              INTELLIGENT EDGE SEARCH PROTOCOL
+            </motion.div>
+            
+            <motion.h1
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 1.2 }}
+              className="text-5xl sm:text-7xl font-bold tracking-tighter text-white font-display mb-6"
+            >
+              Synthesize the Live Web
+            </motion.h1>
+            
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 1.2 }}
+              className="text-base sm:text-xl text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto"
+            >
+              Ask any query. Watch Spark coordinate real-time sources, run deep multi-layered reasoning, and provide unified high-fidelity answers directly inside your secure workspace.
+            </motion.p>
+          </div>
+
+          {/* Search Box Sandbox Compartment */}
+          {isSuggestionsDropdownOpen && (
+            <div 
+              className="fixed inset-0 z-20 cursor-default" 
+              onClick={() => setIsSuggestionsDropdownOpen(false)}
+            />
+          )}
+
+          <div className="w-full max-w-3xl mb-12 relative z-30 px-4 sm:px-0">
+            <div className="glass-card bg-white/[0.03] backdrop-blur-3xl border border-brand/45 hover:border-brand/70 focus-within:border-brand rounded-[32px] p-2 flex flex-col gap-2 relative shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(59,130,246,0.35),_0_0_8px_rgba(59,130,246,0.22)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(59,130,246,0.5),_0_0_12px_rgba(59,130,246,0.32)] focus-within:shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1.5px_rgba(59,130,246,0.65),_0_0_16px_rgba(59,130,246,0.4)] transition-all duration-300">
+              {/* Interactive Sandbox Form */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setIsSuggestionsDropdownOpen(false);
+                  handleDemoSearch(demoQuery);
+                }}
+                className="flex items-center gap-2 sm:gap-3"
+              >
+                <div className="pl-3 text-slate-500 group-focus-within:text-brand transition-colors">
+                  <SearchIcon size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={demoQuery}
+                  onFocus={() => setIsSuggestionsDropdownOpen(true)}
+                  onChange={(e) => setDemoQuery(e.target.value)}
+                  placeholder="Ask and preview Spark Search..."
+                  className="flex-1 bg-transparent border-0 outline-none text-slate-100 placeholder:text-slate-500 py-3 sm:py-4 text-xs sm:text-base focus:ring-0 min-w-0"
+                />
+                
+                {/* Suggestions Toggle Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSuggestionsDropdownOpen(prev => !prev);
+                  }}
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold text-slate-400 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white border border-white/5 transition-all duration-200 shrink-0"
+                >
+                  <span className="hidden sm:inline">Suggested</span>
+                  <ChevronDown size={14} className={`transform transition-transform duration-200 ${isSuggestionsDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isDemoLoading || !demoQuery.trim()}
+                  className={`px-4 sm:px-5 py-2 sm:py-3 rounded-2xl text-[10px] sm:text-xs font-bold font-display tracking-wider transition-all duration-300 flex items-center gap-1.5 shrink-0
+                    ${demoQuery.trim() && !isDemoLoading
+                      ? 'bg-brand text-white shadow-lg hover:scale-105 active:scale-95'
+                      : 'bg-white/5 text-slate-600 cursor-not-allowed'}`}
+                >
+                  {isDemoLoading ? "Processing" : "Preview"}
+                </button>
+              </form>
+
+              {/* Autocomplete Suggestions Dropdown inside Search Box Container */}
+              <AnimatePresence>
+                {isSuggestionsDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.99 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute left-0 right-0 top-full mt-2 bg-slate-950/95 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.9)] z-40 p-2 flex flex-col gap-1 max-h-[280px] overflow-y-auto"
+                  >
+                    <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 mb-1 flex justify-between items-center select-none">
+                      <span>Suggested Research Prompts</span>
+                      <span className="text-[9px] font-medium text-slate-600 lowercase">click to preview</span>
+                    </div>
+                    {[
+                      { label: '🧬 CRISPR Genomics', prompt: 'Analyze latest advancements in CRISPR genetic sequencing techniques.', desc: 'Target sequences & base editing breakthroughs' },
+                      { label: '🔋 Solid-State Battery', prompt: 'Provide engineering status of solid-state lithium ceramic cells.', desc: 'Volumetric density peak & electrolyte longevity' },
+                      { label: '🪐 Habitable Kepler', prompt: 'What are the habitability indicators of exoplanet Kepler-186f?', desc: 'M-dwarf stellar radiation & atmosphere models' }
+                    ].map(({ label, prompt, desc }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => {
+                          setDemoQuery(prompt);
+                          handleDemoSearch(prompt);
+                          setIsSuggestionsDropdownOpen(false);
+                        }}
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-white/[0.05] active:bg-white/10 flex flex-col gap-0.5 transition-all text-slate-200 outline-none"
+                      >
+                        <span className="text-xs sm:text-sm font-bold text-slate-100">{label}</span>
+                        <span className="text-[10px] sm:text-xs text-slate-400 line-clamp-1">{desc}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Interactive Live Stream Console Output Panel */}
+          <AnimatePresence mode="wait">
+            {isDemoLoading && (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="w-full max-w-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-3xl p-8 mb-12 flex items-center justify-center"
+              >
+                {/* Embedded HTML loader provided by user */}
+                <div className="ai-loader" id="ai-search-msg-loader">
+                  <div className="logo" id="ai-search-msg-logo">
+                    <div className="lines" id="ai-search-msg-lines"></div>
+                  </div>
+                  <div className="status" id="ai-search-msg-status">
+                    <div className="words" id="ai-search-msg-words">
+                      <div className="word" style={{ opacity: demoStatus === "Thinking" ? 1 : 0.3 }}>Thinking</div>
+                      <div className="word" style={{ opacity: demoStatus === "Searching the web" ? 1 : 0.3 }}>Searching the web</div>
+                      <div className="word" style={{ opacity: demoStatus === "Analyzing context" ? 1 : 0.3 }}>Analyzing context</div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {demoResponse && (
+              <motion.div
+                key="response"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="w-full max-w-2xl bg-white/[0.01] border border-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 mb-12 shadow-[0_10px_40px_rgba(37,99,235,0.05)] relative overflow-hidden"
+              >
+                {/* Micro Ambient Glow behind markdown output */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand/10 blur-3xl rounded-full" />
+                
+                <div className={`markdown-body ${isDemoStreaming ? 'streaming' : ''} text-slate-300 text-sm sm:text-base leading-relaxed`}>
+                  <ReactMarkdown>{demoResponse}</ReactMarkdown>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* High-Fidelity Login Section Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="w-full max-w-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 sm:p-8 rounded-[2rem] text-center shadow-xl backdrop-blur-md"
+          >
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-brand/5 border border-brand/20 flex items-center justify-center mb-5 text-brand shadow-[0_0_20px_rgba(59,130,246,0.1)]">
+              <Shield size={24} />
+            </div>
+
+            <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-3">
+              Establish Secure Workspace Connection
+            </h3>
+
+            <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed mb-6">
+              Establish a secure private pipeline connection. Your session runs sovereignly via a Decentralized Sandbox stack to prevent any data or keys leaks.
+            </p>
+
+            <button
+              onClick={handleLogin}
+              disabled={isLoggingIn}
+              className="relative group overflow-hidden bg-white text-slate-950 font-extrabold text-sm sm:text-base px-10 py-4.5 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-brand/40 flex items-center gap-3 mx-auto disabled:opacity-55"
+            >
+              {isLoggingIn ? (
+                <>
+                  <Cpu className="animate-spin w-5 h-5 text-brand" />
+                  <span>Configuring Node Hub...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 text-brand animate-pulse" />
+                  <span>Connect Workspace Node</span>
+                </>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-light/30 to-transparent translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-700 pointer-events-none" />
+            </button>
+          </motion.div>
+
+          {/* Interactive bento feature grid section */}
+          <div className="mt-16 sm:mt-24 w-full">
+            <h3 className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] text-center mb-8">
+              Decentralized Architectural Pillars
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+              {[
+                {
+                  id: 'reasoning',
+                  icon: Cpu,
+                  title: 'Edge Reasoning',
+                  shortDesc: 'Multi-layer sequential inference verified at client nodes.',
+                  detail: 'Spark routes requests through non-linear reasoning, allowing self-correcting prompt synthesizers to extract optimal context representation.'
+                },
+                {
+                  id: 'sources',
+                  icon: Globe,
+                  title: 'Live Synthesis',
+                  shortDesc: 'Aggregated real-time indexing with deep integrity filters.',
+                  detail: 'Every research query aggregates authoritative indices and academic networks concurrently, compiling pristine citations with zero hallucinated state.'
+                },
+                {
+                  id: 'privacy',
+                  icon: Shield,
+                  title: 'Sovereign Privacy',
+                  shortDesc: 'Decentralized local sandbox encryption with zero user-tracking.',
+                  detail: 'Spark container architecture hosts processing logic completely stateless. No cookies, trackers, or centralized data logs are generated during execution.'
+                }
+              ].map((item) => {
+                const Icon = item.icon;
+                const isSelected = selectedDemoTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedDemoTab(item.id as any)}
+                    className={`flex flex-col text-left p-6 rounded-2xl border transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-brand
+                      ${isSelected
+                        ? 'bg-brand/5 border-brand shadow-[0_0_30px_rgba(59,130,246,0.1)]'
+                        : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]'}`}
+                  >
+                    <div className={`p-2.5 rounded-xl border flex items-center justify-center mb-4 transition-colors
+                      ${isSelected
+                        ? 'bg-brand/15 border-brand/20 text-brand-light'
+                        : 'bg-white/5 border-white/10 text-slate-400'}`}
+                    >
+                      <Icon size={18} />
+                    </div>
+                    <h4 className="text-base font-bold text-white mb-1">{item.title}</h4>
+                    <p className="text-xs text-slate-400 leading-snug mb-3">{item.shortDesc}</p>
+                    
+                    {isSelected && (
+                      <motion.p
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="text-[11px] text-slate-500 leading-relaxed border-t border-brand/20 pt-3 mt-1"
+                      >
+                        {item.detail}
+                      </motion.p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Technical Footer Stack */}
+          <div className="mt-20 flex flex-col items-center gap-2 text-[9px] font-mono text-slate-600 uppercase tracking-widest">
+            <span>SPARK PROTOCOL VER 2.4.9 // HOST STACK : OK</span>
+            <span>SECURED ENCRYPTED EDGE WORKSPACE</span>
+          </div>
+
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] mesh-bg grid-pattern flex flex-col w-full overflow-x-hidden relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#020617]/50 to-[#020617] pointer-events-none" />
+    <div id="app-root-container" className="min-h-[100dvh] mesh-bg grid-pattern flex flex-col w-full overflow-x-hidden relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#000000]/50 to-[#000000] pointer-events-none" />
       
       {/* Background Glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand/10 blur-[120px] rounded-full pointer-events-none opacity-50" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-dark/10 blur-[120px] rounded-full pointer-events-none opacity-50" />
 
       {/* Header */}
-      <header className="nav-blur px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center group relative z-[100]">
+      <header id="app-header" className="nav-blur px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center group relative z-[100]">
         <div className="flex items-center gap-3 cursor-pointer">
           <Logo size={40} className="group-hover:rotate-12 transition-transform duration-300" />
           <div className="flex flex-col">
             <h1 className="text-xl font-bold font-display tracking-tight text-white leading-none mb-1">Spark Search</h1>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
+              <div className={`w-1.5 h-1.5 rounded-full ${isGuest ? 'bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.8)]' : 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]'}`} />
               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isGuest ? "Guest Access" : "Spark Edge Mesh Active"}</span>
             </div>
           </div>

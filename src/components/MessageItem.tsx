@@ -24,41 +24,50 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleSelection = () => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
-        setSelectionRange(null);
-        return;
-      }
+    let selectionTimeout: any = null;
 
-      const range = selection.getRangeAt(0);
-      const isWithinContent = contentRef.current?.contains(range.commonAncestorContainer);
+    const handleSelection = () => {
+      if (selectionTimeout) clearTimeout(selectionTimeout);
       
-      if (isWithinContent) {
-        const rect = range.getBoundingClientRect();
-        const containerRect = containerRef.current?.getBoundingClientRect();
-        
-        if (containerRect) {
-          // Calculate center X relative to container
-          const centerX = rect.left - containerRect.left + rect.width / 2;
-          // Calculate Y relative to container (top of the selection)
-          const topY = rect.top - containerRect.top;
-          
-          setSelectionRange({
-            x: centerX,
-            y: topY,
-            text: selection.toString().trim()
-          });
+      // Delay slightly to allow selection handles and coordinates to settle on mobile
+      selectionTimeout = setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+          setSelectionRange(null);
+          return;
         }
-      } else {
-        setSelectionRange(null);
-      }
+
+        try {
+          const range = selection.getRangeAt(0);
+          const isWithinContent = contentRef.current?.contains(range.commonAncestorContainer);
+          
+          if (isWithinContent) {
+            const rect = range.getBoundingClientRect();
+            const containerRect = containerRef.current?.getBoundingClientRect();
+            
+            if (containerRect && rect.width > 0) {
+              const centerX = rect.left - containerRect.left + rect.width / 2;
+              const topY = rect.top - containerRect.top;
+              
+              setSelectionRange({
+                x: centerX,
+                y: topY,
+                text: selection.toString().trim()
+              });
+            }
+          } else {
+            setSelectionRange(null);
+          }
+        } catch (e) {
+          setSelectionRange(null);
+        }
+      }, 100);
     };
 
     document.addEventListener('mouseup', handleSelection);
-    // Also handle touch for mobile
     document.addEventListener('touchend', handleSelection);
     return () => {
+      if (selectionTimeout) clearTimeout(selectionTimeout);
       document.removeEventListener('mouseup', handleSelection);
       document.removeEventListener('touchend', handleSelection);
     };
@@ -87,7 +96,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Spark AI Analysis: ' + (message.content.substring(0, 50) + '...'),
+          title: 'Spark Search Analysis: ' + (message.content.substring(0, 50) + '...'),
           text: message.content,
           url: window.location.href
         });
@@ -171,7 +180,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 min-[340px]:grid-cols-2 sm:grid-cols-4 gap-3">
                     {message.sources.slice(0, isSourcesOpen ? 12 : 4).map((s, idx) => {
                       let displaySource = s.source;
                       if (!displaySource && s.url) {
@@ -255,7 +264,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                 className="relative group/content"
                 ref={containerRef}
               >
-                <div ref={contentRef} className="markdown-body text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30 min-h-[2em]">
+                <div ref={contentRef} className={`markdown-body ${message.status === 'writing' ? 'streaming' : ''} text-slate-100 text-base sm:text-lg leading-relaxed selection:bg-brand/30 min-h-[2em]`}>
                   {message.content ? (
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   ) : message.status === 'writing' ? (
@@ -287,7 +296,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                         className="flex items-center gap-2.5 bg-brand text-white px-5 py-2.5 rounded-full shadow-[0_15px_40px_rgba(59,130,246,0.6)] whitespace-nowrap font-bold text-xs hover:scale-110 active:scale-90 transition-all animate-shimmer bg-[linear-gradient(110deg,#3b82f6,45%,#60a5fa,55%,#3b82f6)] bg-[length:200%_100%] border border-white/30 backdrop-blur-sm"
                       >
                         <MessageSquarePlus size={16} />
-                        Ask Spark Intelligence
+                        Ask Spark Search
                       </button>
                     </motion.div>
                   )}
@@ -362,41 +371,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                     exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.3 } }}
                     className="flex flex-col gap-6 mb-12"
                   >
-                    <div className="flex items-center gap-5">
-                      <div className="relative">
-                        <motion.div 
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                          className="w-10 h-10 rounded-full border-2 border-brand/10 border-t-brand shadow-[0_0_20px_rgba(59,130,246,0.3)]"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <motion.div 
-                             animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
-                             transition={{ duration: 2, repeat: Infinity }}
-                             className="w-2.5 h-2.5 bg-brand rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]" 
-                          />
+                    <div className="flex items-center justify-between">
+                      <div className="ai-loader" id="ai-search-msg-loader">
+                        <div className="logo" id="ai-search-msg-logo">
+                          <div className="lines" id="ai-search-msg-lines"></div>
+                        </div>
+                        <div className="status" id="ai-search-msg-status">
+                          <div className="words" id="ai-search-msg-words">
+                            <div className="word" id="ai-search-msg-word-1">Thinking</div>
+                            <div className="word" id="ai-search-msg-word-2">Searching the web</div>
+                            <div className="word" id="ai-search-msg-word-3">Analyzing context</div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-brand uppercase tracking-[0.4em] animate-pulse">
-                            Spark Reasoning Engine
-                          </span>
-                          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-black text-red-500 animate-pulse">
-                            <div className="w-1 h-1 rounded-full bg-red-500" />
-                            LIVE INTEL
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                             Neural Mesh active
-                           </span>
-                           <div className="w-1 h-1 rounded-full bg-slate-700" />
-                           <span className="text-[10px] text-brand-light font-bold uppercase tracking-tighter">
-                             Real-Time Verification
-                           </span>
-                        </div>
-                      </div>
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-black text-red-500 animate-pulse">
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        LIVE INTEL
+                      </span>
                     </div>
 
                     <div className="relative pl-12">
@@ -436,11 +427,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                           animate={{ opacity: 1 }}
                           className="flex items-center gap-4 pl-1"
                         >
-                            <div className="w-4 h-4 rounded-full border-2 border-brand/20 border-t-brand animate-spin" />
-                            <span className="text-xs text-brand font-black uppercase tracking-[0.3em] italic animate-pulse">
-                              Scanning Global Nodes...
-                            </span>
-                          </motion.div>
+                          <div className="w-6 h-6 rounded-lg bg-brand/5 border border-brand/10 flex items-center justify-center flex-shrink-0">
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
+                          </div>
+                          <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em] animate-pulse">
+                            Activating Spark edge mesh ...
+                          </span>
+                        </motion.div>
                         </div>
                       </div>
                     </motion.div>
@@ -490,7 +483,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                        <div className="px-4 py-2 bg-white/[0.02] border border-white/5 rounded-full flex items-center gap-3">
                           <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                             Intelligence synthesized via Spark Reference Network
+                             Intelligence synthesized via Spark Search Mesh
                           </span>
                        </div>
                     </div>

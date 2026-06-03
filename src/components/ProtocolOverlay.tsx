@@ -15,11 +15,11 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
 
   // Micro stages to show during progress
   const microSubtexts = [
-    "Establishing neural link to Vayu Cloud...",
+    "Establishing neural link to Spark Cloud...",
     "Decrypting Spark sandbox environment...",
     "Caching reference models for query synthesis...",
     "Activating stateless reasoning engine nodes...",
-    "Vayu Ecosystem sync finalized. Welcome."
+    "Spark Ecosystem sync finalized. Welcome."
   ];
 
   useEffect(() => {
@@ -71,9 +71,9 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8, ease: "easeInOut" }}
-      className="fixed inset-0 z-[1000] bg-[#020617] flex flex-col items-center justify-center p-6 overflow-hidden"
+      className="fixed inset-0 z-[1000] bg-[#000000] flex flex-col items-center justify-center p-6 overflow-hidden"
     >
-      {/* Background Ambience / Vayu Wave Effect */}
+      {/* Background Ambience / Spark Wave Effect */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Cinematic ambient spots */}
         <motion.div 
@@ -96,7 +96,7 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
       </div>
 
       <div className="relative flex flex-col items-center max-w-md w-full z-10">
-        {/* Animated Vayu Core Connection Ring */}
+        {/* Animated Spark Core Connection Ring */}
         <div className="relative mb-12">
           {/* Orbital connection rays */}
           {[1.2, 1.5, 1.8].map((s, idx) => (
@@ -130,7 +130,7 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
           </div>
         </div>
 
-        {/* Dynamic Connected Vayu System text */}
+        {/* Dynamic Connected Spark System text */}
         <div className="flex flex-col items-center text-center gap-2 mb-8 select-none">
           <motion.div
             initial={{ opacity: 0, y: 15, filter: 'blur(5px)' }}
@@ -139,7 +139,7 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
             className="flex items-center gap-3 bg-white/[0.03] border border-white/5 px-4 py-2 rounded-full mb-3 shadow-inner"
           >
             <Network size={15} className="text-brand animate-pulse" />
-            <span className="text-[10px] sm:text-xs font-black text-brand uppercase tracking-[0.25em]">VAYU ECOSYSTEM</span>
+            <span className="text-[10px] sm:text-xs font-black text-brand uppercase tracking-[0.25em]">SPARK ECOSYSTEM</span>
           </motion.div>
 
           {/* Core Status Header */}
@@ -149,7 +149,7 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
             transition={{ delay: 0.2, duration: 0.8 }}
             className="text-2xl sm:text-3xl font-display font-medium text-white tracking-tight"
           >
-            Connecting to Vayu Ecosystem
+            Connecting to Spark Ecosystem
           </motion.h2>
         </div>
 

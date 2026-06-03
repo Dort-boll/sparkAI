@@ -9,30 +9,32 @@ export async function executeFallbackFlow(
   let summaryContent = "";
   
   if (summary && summary.length > 30) {
-    summaryContent = `## Spark Reference Insight\n\n${summary}\n\n---\n\n`;
+    summaryContent = `## Spark Reference Insight (Neural Web Mesh)\n\n${summary}\n\n---\n\n`;
   }
   
   const sections = context.split('###');
-  const refSection = sections.find(s => s?.includes('REFERENCE KNOWLEDGE REPOSITORY'));
+  const refSection = sections.find(s => s?.includes('REFERENCED NEURAL KNOWLEDGE REPOSITORY'));
   
   if (refSection) {
-    const entries = refSection.split(/\[ENTITY \d+\]/).slice(1);
+    const entries = refSection.split(/\[NODE \d+\]/).slice(1);
     if (entries.length > 0) {
       summaryContent += `## Domain Intelligence Nodes\n\n`;
       entries.forEach((entry, idx) => {
         const titleMatch = entry.match(/title: (.*?)(?:\n|$)/);
-        const summaryMatch = entry.match(/SUMMARY: ([\s\S]*?)(?:\n\n|\n$|$)/);
+        const sourceMatch = entry.match(/source: (.*?)(?:\s|\|)/);
+        const snippetMatch = entry.match(/INTEL: ([\s\S]*?)(?:\n\n|\n$|$)/);
         
-        if (titleMatch && summaryMatch) {
+        if (titleMatch && snippetMatch) {
           const title = titleMatch[1].trim();
-          const snip = summaryMatch[1].trim();
+          const snip = snippetMatch[1].trim();
+          const src = sourceMatch ? sourceMatch[1].trim() : "Verified Link";
           
           if (!snip || snip.length < 5) return;
 
           // Improved deduplication
           if (summary && summary.toLowerCase().includes(snip.toLowerCase().substring(0, 50))) return;
           
-          summaryContent += `### ${idx + 1}. ${title}\n${snip}\n\n`;
+          summaryContent += `### ${idx + 1}. [${src}] ${title}\n${snip}\n\n`;
         }
       });
     }
@@ -56,7 +58,7 @@ export async function executeFallbackFlow(
   }
 
   if (!summaryContent.includes('synthesized directly')) {
-    summaryContent += `\n***\n*Spark Intelligence Level 1: This analysis was synthesized directly from the Spark Reference Library and verified reference sources for guest protocol access.*`;
+    summaryContent += `\n***\n*Spark Search Intelligence Level 1: This analysis was synthesized directly from the Spark Neural Web Mesh and verified sources.*`;
   }
 
   // Step-by-step streaming visualization
@@ -116,18 +118,11 @@ export async function generateAnswer(
   
   try {
     // Step-by-step thinking for Perplexity-style flow
-    const thinkingStages = isGuest ? [
-      "Accessing Spark Reference Library...",
-      "Scanning authority-ranked encyclopedic nodes...",
-      "Mapping historical and verified knowledge clusters...",
-      "Synthesizing reference analysis..."
-    ] : [
-      "Accessing global intelligence network...",
-      "Deeply scanning real-time 2026 data nodes...",
-      "Mapping authority-ranked knowledge clusters...",
-      "Filtering verified incident reports...",
-      "Cross-referencing temporal data for accuracy...",
-      "Synthesizing advanced multi-dimensional analysis..."
+    const thinkingStages = [
+      "Accessing global Spark Search intelligence network...",
+      "Activating high-fidelity web search reasoning protocols...",
+      "Mapping authority-ranked knowledge clusters and sources...",
+      "Synthesizing advanced multi-dimensional analysis with Spark Search..."
     ];
 
     for (let i = 0; i < thinkingStages.length; i++) {
@@ -135,31 +130,42 @@ export async function generateAnswer(
         status: 'thinking', 
         thought: thinkingStages[i] 
       });
-      const delay = isGuest ? 120 + (Math.random() * 100) : 250 + (Math.random() * 150);
+      const delay = 200 + (Math.random() * 100);
       await new Promise(r => setTimeout(r, delay));
     }
 
     const systemPrompt = `
-You are Spark Search, the world's most advanced real-time AI reasoning engine. 
+You are Spark Search, the world's most advanced real-time reasoning engine.
 CURRENT DATE: ${new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 
-${isGuest ? `GUEST MODE ENABLED: Your search access is strictly restricted to high-repute reference archives. Do not mention real-time 2026 web activities or live news unless it is documented in the provided context.` : `WORKSPACE MODE ACTIVE: You have full access to the Spark Edge Web Intelligence Mesh. Use a real-time web search interface smoothly to crawl, gather, and summarize the latest news, updates, real-time context, and current affairs related to "${query}". Deliver an exhaustive, highly detailed summary of the newest developments.`}
+You are NOT a chatbot.
 
-CORE PROTOCOLS:
-1. RESPONSE ARCHITECTURE: Provide a deep, multi-paragraph analysis. Aim for comprehensive depth and significant length.
-   - Start with a concise **Summary** section summarizing the latest news, facts or developments.
-   - Follow with a deep **Detailed Analysis** section using markdown headers (##).
-   - Use **Key takeaways** bullet points.
-   - For complex queries, use tables, bulleted lists, and structured comparisons.
-2. CITATIONS: Use bracketed indices like [1], [2], etc., to cite information from the provided context. 
-   - Match the indices found in the context (e.g., [ENTITY 1] or [NODE 5] -> use [1] or [5]).
-3. FORMATTING: Use standard Markdown headers (##, ###), **bold** for emphasis, and tables/code blocks where beneficial.
-4. TONE: Professional, objective, authoritative, and intellectual.
-5. FOLLOW-UPS: At the very end of your response, provide exactly 4 short "Related Questions" prefixed with "RELATED_QUESTIONS:".
+Return structured search output only:
+
+FORMAT:
+## 1. Direct Answer
+(Provide a crisp, direct, short, highly factual summary here answering the user search query)
+
+## 2. Key Insights
+(Provide 3-5 high-priority bullet-style insights mapped from search context)
+
+## 3. Context Summary
+(Provide a masterfully synthesized, structured detailed analysis summarizing the core landscape, parameters, and key facts)
+
+## 4. Sources & Citation Index
+(Incorporate citation indices such as [1], [2] to match indexed sources in context)
+
+RULES:
+- No conversation
+- No greetings
+- No filler text
+- Be concise like Google + Perplexity hybrid
+- Cite correctly using bracketed numbers corresponding to context nodes
+
+At the very end of your response, provide exactly 4 short "Related Questions" prefixed with "RELATED_QUESTIONS:". EACH RELATED QUESTION ON A NEW LINE.
 `;
 
     const messages = [];
-    // Inject system boundaries safely
     messages.push({ role: "system", content: systemPrompt });
 
     // Filter and map prior history to avoid duplicate sequences
@@ -180,60 +186,62 @@ CORE PROTOCOLS:
     // Append current user message with ground context
     messages.push({
       role: 'user',
-      content: `LATEST FRESH CONTEXT TO USE:\n${context}\n\nQuestion: ${query}`
+      content: `LATEST FRESH CONTEXT TO USE:\n${context || "No search results context available."}\n\nQuestion: ${query}`
     });
 
     let fullContent = "";
     let lastUpdate = 0;
     const UPDATE_INTERVAL = 80; // ms throttle for smoother UI
-    
-    // Strictly enforce high-fidelity local synthesis for Guest Mode
-    // This bypasses neural reasoning checks to ensure Puter.js is not utilized in guest state
-    if (isGuest) {
-      return await executeFallbackFlow(query, context, summary, onUpdate);
-    }
-
-    const isAIReady = puter && puter.ai && typeof puter.ai.chat === 'function';
-
-    if (!isGuest && !puter) {
-      throw new Error("Spark Edge Workspace not initialized. Please enter deep-access mode.");
-    }
 
     if (!puter || !puter.ai || typeof puter.ai.chat !== 'function') {
-      throw new Error("Puter is not loaded or does not have AI module ready.");
+      console.warn("Spark AI driver connection offline, invoking local synthesis fallback.");
+      return await executeFallbackFlow(query, context, summary, onUpdate);
     }
 
     onUpdate({ status: 'writing' });
 
-    // Multi-model cascading retry logic to ensure robust delivery
+    // Stream query with high-precision model requested by user
     let response: any = null;
-    let successModel = '';
-    const modelsToTry = [
-      { model: "gpt-4o-mini", search: !isGuest },
-      { model: "meta-llama/llama-3-70b-instruct", search: !isGuest },
-      { model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", search: !isGuest },
-      // Fallback with no model parameter (uses Puter SDK default)
-      { search: !isGuest }
+    const modelOptions = [
+      "z-ai/glm-4.5-flash",
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "nvidia/nemotron-3-nano-30b-a3b-reasoning:free",
+      "gpt-4o-mini",
+      "meta-llama/llama-3-70b-instruct"
     ];
-
-    for (const opt of modelsToTry) {
+    
+    let successModel = 'z-ai/glm-4.5-flash';
+    
+    for (const model of modelOptions) {
       try {
-        console.log(`Spark Reasoning: Initiating neural chat using ${opt.model || 'default'}...`);
+        console.log(`Spark Reasoning: Initiating Core Chat using ${model}...`);
         response = await puter.ai.chat(messages, {
-          ...opt,
+          model: model,
           stream: true
         });
         if (response) {
-          successModel = opt.model || 'default';
+          successModel = model;
           break;
         }
-      } catch (err) {
-        console.warn(`Model option ${opt.model || 'default'} failed:`, err);
+      } catch (err: any) {
+        console.warn(`Spark Reasoning model fallback: ${err.message || err}`);
       }
     }
 
     if (!response) {
-       throw new Error("All active reasoning models in Puter failed to respond.");
+      try {
+        successModel = 'default';
+        response = await puter.ai.chat(messages, {
+          stream: true
+        });
+      } catch (fallbackErr) {
+        console.error("All Spark backend models fallback error:", fallbackErr);
+        throw fallbackErr;
+      }
+    }
+
+    if (!response) {
+       throw new Error("Spark reasoning engines offline.");
     }
 
     if (response && typeof response === 'object' && Symbol.asyncIterator in response) {
@@ -284,10 +292,9 @@ CORE PROTOCOLS:
       relatedQueries: relatedQuestions.length > 0 ? relatedQuestions : [`Key facts about ${query}`, `History of ${query}`, `More questions on ${query}`, `Future developments of ${query}`] 
     };
   } catch (error: any) {
-    console.error("AI Generation Error, running secondary fallback flow:", error);
-    onUpdate({ thought: `Direct neural query failed: ${error.message || 'Rate Limited'}. Mobilizing offline fallback...` });
+    console.error("Spark Generation Error, running fallback flow:", error);
+    onUpdate({ thought: `Spark query fallback active. Mobilizing offline fallback...` });
     await new Promise(r => setTimeout(r, 600));
     return await executeFallbackFlow(query, context, summary, onUpdate);
   }
 }
-

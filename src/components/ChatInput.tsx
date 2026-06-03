@@ -100,7 +100,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 15 * 1024 * 1024) {
-        toast.error("File constraint violation", { description: "Maximum payload for Spark Mesh is 15MB." });
+        toast.error("File constraint violation", { description: "Maximum payload for Spark Search is 15MB." });
         return;
       }
       setSelectedFile(file);
@@ -184,7 +184,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-full left-0 right-0 mb-4 bg-[#0f172a]/95 backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl z-50 p-2"
+            className="absolute bottom-full left-0 right-0 mb-4 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl z-50 p-2"
           >
             <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Suggestions</span>
@@ -225,13 +225,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
         )}
       </AnimatePresence>
 
-      <div className="relative group w-full px-3 sm:px-0">
-        {/* Advanced Google-Style Animated Glow Border */}
-        <div className={`absolute -inset-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-[32px] blur-lg transition duration-1000 group-hover:duration-200 animate-pulse ${isHome ? 'opacity-20 group-focus-within:opacity-60' : 'opacity-30 group-focus-within:opacity-80'}`}></div>
+      <div className="relative w-full px-3 sm:px-0">
         
         <form 
           onSubmit={handleSubmit}
-          className="glass-card !bg-[#0f172a]/90 !p-1.5 sm:!p-2 flex flex-col shadow-xl relative w-full !rounded-[32px] border border-white/5"
+          className="glass-card !bg-black/45 sm:!bg-black/30 backdrop-blur-3xl !p-1.5 sm:!p-2 flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(59,130,246,0.35),_0_0_8px_rgba(59,130,246,0.22)] relative w-full !rounded-[32px] border border-brand/45 hover:border-brand/70 focus-within:border-brand hover:shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(59,130,246,0.5),_0_0_12px_rgba(59,130,246,0.32)] focus-within:shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1.5px_rgba(59,130,246,0.65),_0_0_16px_rgba(59,130,246,0.4)] transition-all duration-300"
         >
           {selectedFile && (
             <motion.div 
@@ -280,7 +278,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => query.trim().length > 1 && suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="Ask spark anything..."
+                placeholder="Ask Spark Search anything..."
                 className="w-full min-h-[44px] sm:min-h-[52px] leading-[24px] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 shadow-none resize-none py-2.5 sm:py-3.5 text-sm sm:text-base text-slate-100 placeholder:text-slate-400 max-h-32 sm:max-h-48 scrollbar-none [&::-webkit-scrollbar]:hidden relative z-10 block"
               />
             </div>
@@ -290,7 +288,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
                 <button 
                   type="button"
                   onClick={handleMicClick}
-                  className={`p-2.5 transition-all rounded-full hidden sm:flex ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
+                  className={`p-2 sm:p-2.5 transition-all rounded-full flex ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
                 >
                   {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
                 </button>
@@ -319,17 +317,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
         </form>
       </div>
       
-      <div className={`flex justify-center gap-4 sm:gap-8 mt-4 text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] ${isHome ? 'opacity-80' : 'opacity-60'}`}>
-        <div className="flex items-center gap-1.5">
-          <Search size={12} /> <span className="hidden xs:inline">Multi-Source</span><span className="xs:hidden">Search</span>
+      {isHome && (
+        <div className="flex justify-center gap-4 sm:gap-8 mt-4 text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] opacity-80">
+          <div className="flex items-center gap-1.5">
+            <Search size={12} /> <span className="hidden xs:inline">Multi-Source</span><span className="xs:hidden">Search</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={12} /> <span className="hidden xs:inline">Reasoning</span><span className="xs:hidden">AI</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" /> Spark Search
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Sparkles size={12} /> <span className="hidden xs:inline">Reasoning</span><span className="xs:hidden">AI</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]" /> Spark Search
-        </div>
-      </div>
+      )}
     </div>
   );
 
@@ -342,8 +342,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-6 sm:pb-8 pt-10 pointer-events-none">
-      <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/90 to-transparent" />
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-4 sm:pb-8 pt-6 sm:pt-10 pointer-events-none">
+      <div className="absolute inset-0 bg-gradient-to-t from-[#000000] via-[#000000]/95 via-80% to-transparent" />
       <div className="relative w-full max-w-3xl mx-auto pointer-events-auto">
         {innerForm}
       </div>
