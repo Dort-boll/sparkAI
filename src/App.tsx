@@ -8,7 +8,8 @@ import { SourceManager } from './components/SourceManager';
 import { ActionTooltip } from './components/ActionTooltip';
 import { Logo } from './components/Brand';
 import { ProtocolOverlay } from './components/ProtocolOverlay';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, User, LogOut, Layers, Shield, Zap, Globe, ChevronDown } from 'lucide-react';
+import { AILoader } from './components/AILoader';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, ArrowRight, User, LogOut, Layers, Shield, Zap, Globe, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -472,9 +473,9 @@ export default function App() {
            <div className="absolute inset-0 bg-brand/30 blur-3xl rounded-full -z-10" />
          </motion.div>
          <div className="flex flex-col items-center gap-4">
-           <div className="flex items-center gap-3">
-             <div className="w-2 h-2 rounded-full bg-brand animate-ping" />
-             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">{status || "Configuring Spark Search"}</span>
+           <div className="flex items-center gap-2.5">
+             <Cpu size={14} className="animate-spin text-brand/70 shrink-0" />
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">Initializing Spark Search</span>
            </div>
          </div>
        </div>
@@ -501,7 +502,7 @@ export default function App() {
         {/* Sticky Glassmorphic Header */}
         <header className="nav-blur px-6 sm:px-10 py-4 sm:py-5 flex justify-between items-center z-50 sticky top-0 w-full transition-all duration-300">
           <div className="flex items-center gap-3">
-            <Logo size={36} className="text-white animate-pulse" />
+            <Logo size={36} className="text-white" />
             <div className="flex flex-col">
               <span className="text-lg font-bold font-display tracking-tight text-white">Spark Search</span>
               <span className="text-[9px] font-black tracking-widest text-brand-light uppercase">DECIDIOUS CORE</span>
@@ -529,7 +530,7 @@ export default function App() {
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
               className="inline-flex items-center gap-2 bg-gradient-to-r from-brand/10 to-brand-light/10 border border-brand/20 px-3 py-1.5 rounded-full mb-6 text-[10px] sm:text-xs font-bold tracking-wider text-brand-light uppercase"
             >
-              <Sparkles size={12} className="text-brand animate-pulse" />
+              <Sparkles size={12} className="text-brand" />
               INTELLIGENT EDGE SEARCH PROTOCOL
             </motion.div>
             
@@ -537,18 +538,18 @@ export default function App() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.1, duration: 1.2 }}
-              className="text-5xl sm:text-7xl font-bold tracking-tighter text-white font-display mb-6"
+              className="text-4xl min-[375px]:text-5xl sm:text-7xl font-bold tracking-tighter text-white font-display mb-6"
             >
-              Synthesize the Live Web
+              Ask Spark anything
             </motion.h1>
             
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 1.2 }}
-              className="text-base sm:text-xl text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto"
+              className="text-sm sm:text-xl text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto px-4"
             >
-              Ask any query. Watch Spark coordinate real-time sources, run deep multi-layered reasoning, and provide unified high-fidelity answers directly inside your secure workspace.
+              Watch Spark coordinate live web indexers, stream recursive deep reasoning layers, and compile high-precision syntheses directly inside your private workspace.
             </motion.p>
           </div>
 
@@ -579,7 +580,7 @@ export default function App() {
                   value={demoQuery}
                   onFocus={() => setIsSuggestionsDropdownOpen(true)}
                   onChange={(e) => setDemoQuery(e.target.value)}
-                  placeholder="Ask and preview Spark Search..."
+                  placeholder="Ask Spark anything..."
                   className="flex-1 bg-transparent border-0 outline-none text-slate-100 placeholder:text-slate-500 py-3 sm:py-4 text-xs sm:text-base focus:ring-0 min-w-0"
                 />
                 
@@ -655,21 +656,9 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="w-full max-w-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-3xl p-8 mb-12 flex items-center justify-center"
+                className="w-full max-w-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-3xl p-8 mb-12 flex items-center justify-center animate-fade-in"
               >
-                {/* Embedded HTML loader provided by user */}
-                <div className="ai-loader" id="ai-search-msg-loader">
-                  <div className="logo" id="ai-search-msg-logo">
-                    <div className="lines" id="ai-search-msg-lines"></div>
-                  </div>
-                  <div className="status" id="ai-search-msg-status">
-                    <div className="words" id="ai-search-msg-words">
-                      <div className="word" style={{ opacity: demoStatus === "Thinking" ? 1 : 0.3 }}>Thinking</div>
-                      <div className="word" style={{ opacity: demoStatus === "Searching the web" ? 1 : 0.3 }}>Searching the web</div>
-                      <div className="word" style={{ opacity: demoStatus === "Analyzing context" ? 1 : 0.3 }}>Analyzing context</div>
-                    </div>
-                  </div>
-                </div>
+                <AILoader />
               </motion.div>
             )}
 
@@ -696,38 +685,94 @@ export default function App() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="w-full max-w-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 sm:p-8 rounded-[2rem] text-center shadow-xl backdrop-blur-md"
+            className="w-full max-w-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-[#030712]/50 p-6 sm:p-10 rounded-[2rem] text-center shadow-2xl backdrop-blur-xl relative overflow-hidden group hover:border-brand/35 transition-all duration-500 animate-fade-in"
           >
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-brand/5 border border-brand/20 flex items-center justify-center mb-5 text-brand shadow-[0_0_20px_rgba(59,130,246,0.1)]">
-              <Shield size={24} />
+            {/* Ambient Animated Corner Flare */}
+            <div className="absolute -top-10 -right-10 w-44 h-44 bg-brand/10 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-blue-500/10 blur-3xl rounded-full opacity-40 group-hover:opacity-80 transition-opacity duration-700 pointer-events-none" />
+
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-brand/5 border border-brand/20 flex items-center justify-center mb-6 text-brand shadow-[0_0_30px_rgba(59,130,246,0.15)] relative">
+              <Shield className="w-6.5 h-6.5" />
+              <div className="absolute inset-0 rounded-2xl border border-brand/40 animate-ping opacity-25 pointer-events-none" style={{ animationDuration: '3s' }} />
             </div>
 
-            <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-3">
-              Establish Secure Workspace Connection
+            <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-white tracking-tight leading-none mb-3">
+              Power Premium Spark Search
             </h3>
 
-            <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed mb-6">
-              Establish a secure private pipeline connection. Your session runs sovereignly via a Decentralized Sandbox stack to prevent any data or keys leaks.
+            <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed mb-8">
+              Connect via Puter Cloud Workspace for unconstrained real-time indexing, multi-agent reasoning, and zero data leakage.
             </p>
 
-            <button
-              onClick={handleLogin}
-              disabled={isLoggingIn}
-              className="relative group overflow-hidden bg-white text-slate-950 font-extrabold text-sm sm:text-base px-10 py-4.5 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-brand/40 flex items-center gap-3 mx-auto disabled:opacity-55"
-            >
-              {isLoggingIn ? (
-                <>
-                  <Cpu className="animate-spin w-5 h-5 text-brand" />
-                  <span>Configuring Node Hub...</span>
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5 text-brand animate-pulse" />
-                  <span>Connect Workspace Node</span>
-                </>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-r from-brand-light/30 to-transparent translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-700 pointer-events-none" />
-            </button>
+            {/* Feature Checkpoints */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto text-left mb-8">
+              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
+                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
+                  <Globe size={11} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-200">Continuous Live Querying</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Continuous crawling & deep indexes synthesis.</p>
+                </div>
+              </div>
+              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
+                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
+                  <Cpu size={11} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-200">High-Precision Models</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Deep multi-step reasoning capabilities.</p>
+                </div>
+              </div>
+              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
+                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
+                  <Shield size={11} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-200">Sovereign Data Privacy</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Strictly runs inside secure sandboxed nodes.</p>
+                </div>
+              </div>
+              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
+                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
+                  <Zap size={11} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-200">Always Free To Start</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Unlimited basic queries for personal research.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+              <button
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+                className="w-full sm:w-auto relative group overflow-hidden bg-white text-slate-950 font-black text-xs sm:text-sm px-8 py-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_15px_30px_rgba(255,255,255,0.08)] hover:shadow-brand/25 flex items-center justify-center gap-2.5 disabled:opacity-55 shrink-0 cursor-pointer"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Cpu className="animate-spin w-4 h-4 text-brand" />
+                    <span>Authorizing Workspace...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 text-brand fill-brand animate-pulse" />
+                    <span>Connect Workspace</span>
+                  </>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-brand-light/35 to-transparent translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-700 pointer-events-none" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#ffffff]/[0.03] hover:bg-[#ffffff]/[0.07] border border-white/5 px-8 py-4 rounded-xl text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition-all active:scale-[0.98] duration-200 cursor-pointer"
+              >
+                <span>Continue as Guest</span>
+                <ArrowRight size={14} className="text-slate-400 transition-transform group-hover:translate-x-1 duration-200" />
+              </button>
+            </div>
           </motion.div>
 
           {/* Interactive bento feature grid section */}
@@ -834,19 +879,7 @@ export default function App() {
               Guest Mode
             </div>
           )}
-          <AnimatePresence>
-            {status && (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="hidden md:flex items-center gap-2.5 text-[10px] font-bold text-brand-light bg-brand/10 border border-brand/20 px-4 py-2 rounded-full shadow-lg"
-              >
-                <Cpu size={14} className="animate-spin duration-3000" />
-                <span className="uppercase tracking-[0.1em]">{status}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
           <div className="flex items-center gap-2">
             <ActionTooltip text="Clear Session">
               <button 
@@ -881,23 +914,27 @@ export default function App() {
         <AnimatePresence initial={false}>
           {messages.length === 0 ? (
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex-1 flex flex-col items-center justify-center text-center px-4 w-full min-h-[75vh]"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 w-full min-h-[75vh]"
             >
-              <div className="mb-6 relative">
-                 <Logo size={64} className="mx-auto mb-4" />
-                 <h2 className="text-4xl sm:text-5xl font-display font-medium tracking-tight text-slate-200">
-                   What do you want to know?
+              <div className="mb-8 relative select-none">
+                 <Logo size={72} className="mx-auto mb-6 text-brand drop-shadow-[0_0_15px_rgba(59,130,246,0.2)]" />
+                 <h2 className="text-4xl sm:text-6xl font-display font-extrabold tracking-tight text-white mb-4">
+                   Spark
                  </h2>
+                 <p className="text-slate-400 text-xs sm:text-base max-w-lg mx-auto leading-relaxed">
+                   Live web querying, deep sequential research reasoning, and sovereign container privacy combined instantly.
+                 </p>
               </div>
               
               <div className="w-full relative z-20">
                  <ChatInput onSend={handleSend} isLoading={isLoading} isHome={true} />
               </div>
 
-              {/* Perplexity style suggestions below the search box */}
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 w-full max-w-2xl">
+              {/* Suggestions below the search box */}
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3 w-full max-w-2xl px-2">
                  {[
                    { label: 'Future of Nuclear Fusion', icon: Sparkles },
                    { label: 'James Webb Space Discovery', icon: SearchIcon },
@@ -907,10 +944,10 @@ export default function App() {
                    <button 
                      key={label}
                      onClick={() => handleSend(label)}
-                     className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-brand/30 rounded-full py-2 px-4 transition-all text-slate-300 text-xs sm:text-sm"
+                     className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-brand/30 rounded-full py-2 px-3.5 sm:px-4.5 transition-all text-slate-300 text-xs sm:text-sm max-w-full truncate"
                    >
-                     <Icon size={14} className="text-slate-500" />
-                     {label}
+                     <Icon size={13} className="text-brand shrink-0" />
+                     <span className="truncate">{label}</span>
                    </button>
                  ))}
               </div>
@@ -966,6 +1003,22 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Floating loading/status animation shown when generating answers */}
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 15, x: "-50%", scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, x: "-50%", scale: 1 }}
+            exit={{ opacity: 0, y: 10, x: "-50%", scale: 0.9 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="fixed bottom-[88px] sm:bottom-[104px] left-1/2 -translate-x-1/2 z-[45] flex items-center gap-2 px-4 py-2 rounded-full bg-slate-950/85 backdrop-blur-2xl border border-brand/40 shadow-[0_10px_30px_rgba(59,130,246,0.25)] text-[10px] sm:text-xs font-bold text-brand-light tracking-wide uppercase whitespace-nowrap select-none"
+          >
+            <Cpu size={12} className="animate-spin text-brand shrink-0" />
+            <span className="truncate">Search & synthesis active</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Fixed Output Input */}
       {messages.length > 0 && <ChatInput onSend={handleSend} isLoading={isLoading} isHome={false} />}

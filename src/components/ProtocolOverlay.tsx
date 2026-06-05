@@ -138,7 +138,7 @@ export const ProtocolOverlay: React.FC<ProtocolOverlayProps> = ({ type, onComple
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="flex items-center gap-3 bg-white/[0.03] border border-white/5 px-4 py-2 rounded-full mb-3 shadow-inner"
           >
-            <Network size={15} className="text-brand animate-pulse" />
+            <Network size={15} className="text-brand" />
             <span className="text-[10px] sm:text-xs font-black text-brand uppercase tracking-[0.25em]">SPARK ECOSYSTEM</span>
           </motion.div>
 

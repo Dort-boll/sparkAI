@@ -52,10 +52,7 @@ async function sparkAiWebSearch(query: string): Promise<{ summary: string; sourc
 
   // Model list to cascade so we are 100% immune to API rate limits or deprecations
   const modelOptions = [
-    "z-ai/glm-4.5-flash",
-    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-    "openai/gpt-4o",
-    "gpt-4o-mini"
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
   ];
 
   let chatResponse: any = null;
@@ -111,8 +108,8 @@ async function sparkAiWebSearch(query: string): Promise<{ summary: string; sourc
     try {
       const hostname = new URL(url).hostname.replace('www.', '');
       sources.push({
-        title: `Spark Verified Node: ${hostname}`,
-        snippet: `Deep reference intelligence extracted for "${query}". Includes live context verified via neural searching.`,
+        title: hostname,
+        snippet: `Deep reference intelligence extracted for "${query}". Includes live context verified via searching.`,
         url: url,
         source: hostname,
         category: 'Web' as const
@@ -136,13 +133,16 @@ async function sparkBrowserSearch(query: string): Promise<SearchResult[]> {
     const results = await puter.browser.search(query);
     if (!results || !Array.isArray(results)) return [];
 
-    return results.map((r: any) => ({
-      title: cleanText(r.title || "Spark Reference Node"),
-      snippet: cleanText(r.snippet || r.description || "Insight indexed from the global mesh."),
-      url: r.url || r.link || "#",
-      source: r.source || new URL(r.url || "https://puter.com").hostname.replace('www.', '') || 'Spark Mesh',
-      category: 'Web' as const
-    }));
+    return results.map((r: any) => {
+      const hostname = r.url ? new URL(r.url).hostname.replace('www.', '') : "Web Search Reference";
+      return {
+        title: cleanText(r.title || hostname),
+        snippet: cleanText(r.snippet || r.description || "Insight indexed from the global mesh."),
+        url: r.url || r.link || "#",
+        source: r.source || hostname || 'Web Search',
+        category: 'Web' as const
+      };
+    });
   } catch (error) {
     console.error('Spark Browser Search Error:', error);
     return [];
@@ -202,10 +202,10 @@ export async function SparkSearch(
     // If empty fallback placeholder
     if (combinedResults.length === 0) {
       combinedResults.push({
-        title: "Spark Master Node",
-        snippet: `Real-time search completed. Synthesis running internally for query: "${query}".`,
+        title: "Web Search Reference",
+        snippet: `Search completed. Synthesis running internally for query: "${query}".`,
         url: "https://puter.com",
-        source: "Spark Search",
+        source: "Web Search",
         category: "Reference"
       });
     }

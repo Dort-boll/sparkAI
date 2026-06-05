@@ -4,8 +4,9 @@ import { ChatMessage } from '../types';
 import { SourceList } from './SourceList';
 import { motion, AnimatePresence } from 'motion/react';
 import { ActionTooltip } from './ActionTooltip';
-import { Sparkles, User, Search as SearchIcon, Image as ImageIcon, ChevronDown, Layers, ArrowRight, Copy, Check, Share2, ThumbsUp, ThumbsDown, MessageSquarePlus } from 'lucide-react';
+import { Sparkles, User, Search as SearchIcon, Image as ImageIcon, ChevronDown, Layers, ArrowRight, Copy, Check, Share2, ThumbsUp, ThumbsDown, MessageSquarePlus, Cpu, Globe } from 'lucide-react';
 import { toast } from 'sonner';
+import { AILoader } from './AILoader';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -204,15 +205,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                           href={s.url} 
                           target="_blank" 
                           rel="noreferrer" 
-                          className="flex flex-col gap-2 p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-brand/30 rounded-xl transition-all group"
+                          className="flex flex-col justify-between gap-2.5 p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-brand/30 rounded-xl transition-all group min-h-[92px]"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-brand/20">
-                              <span className="text-[8px] font-bold text-slate-500 group-hover:text-brand">{idx + 1}</span>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-brand/20">
+                                <span className="text-[8px] font-bold text-slate-500 group-hover:text-brand">{idx + 1}</span>
+                              </div>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase truncate group-hover:text-white">{displaySource || 'Reference'}</span>
                             </div>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase truncate group-hover:text-white">{displaySource || 'Reference'}</span>
+                            <h4 className="text-[11px] font-semibold text-slate-200 line-clamp-2 leading-snug group-hover:text-brand-light">{s.title}</h4>
                           </div>
-                          <h4 className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-tight group-hover:text-brand-light">{s.title}</h4>
+                          {s.url && s.url !== '#' && (
+                            <span className="text-[9px] text-slate-500 font-mono truncate group-hover:text-slate-300 block pt-1 border-t border-white/5 mt-auto">
+                              {s.url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </span>
+                          )}
                         </motion.a>
                       );
                     })}
@@ -256,11 +264,64 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
 
             {/* Answer Region */}
             <div className="flex flex-col gap-6">
+              {/* Collapsible Deep Reasoning Block shown during writing/complete status */}
+              {message.thoughts && message.thoughts.length > 0 && message.status !== 'thinking' && (
+                <div className="border border-white/5 bg-[#ffffff]/[0.015] rounded-2xl overflow-hidden transition-all max-w-3xl shadow-xl hover:border-brand/20 duration-300">
+                  <button 
+                    onClick={() => setIsThinkingOpen(!isThinkingOpen)}
+                    className="flex items-center justify-between w-full p-4.5 hover:bg-white/[0.03] transition-all text-xs font-bold text-slate-400 hover:text-slate-200 select-none cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-brand" />
+                        <div className="absolute w-4.5 h-4.5 rounded-full border border-brand/50 animate-ping opacity-30 pointer-events-none" style={{ animationDuration: '3.s' }} />
+                      </div>
+                      <span className="uppercase tracking-[0.14em] font-display text-slate-300">
+                        {message.status === 'writing' ? 'Synthesizing knowledge engine...' : 'Thought process completed'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[10px] text-slate-500 font-mono bg-white/[0.03] border border-white/5 px-2 py-0.5 rounded">
+                        {message.thoughts.length} stages verified
+                      </span>
+                      <ChevronDown size={14} className={`text-slate-500 transition-transform duration-300 ${isThinkingOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isThinkingOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden border-t border-white/5"
+                      >
+                        <div className="p-5 bg-black/50 flex flex-col gap-4 font-mono text-[11px] leading-relaxed text-slate-400">
+                          {message.thoughts.map((thought, idx) => (
+                            <motion.div 
+                              key={idx}
+                              initial={{ opacity: 0, x: -5 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.25, delay: idx * 0.04 }}
+                              className="flex items-start gap-3.5 border-b border-white/[0.02] last:border-0 pb-2.5 last:pb-0"
+                            >
+                              <div className="w-4 h-4 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 font-sans text-[8px] font-bold">✓</div>
+                              <span className="text-slate-300" dangerouslySetInnerHTML={{ __html: thought }} />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
               {/* Streaming Content */}
               <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 className="relative group/content"
                 ref={containerRef}
               >
@@ -268,10 +329,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                   {message.content ? (
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   ) : message.status === 'writing' ? (
-                    <div className="flex flex-col gap-4 animate-pulse">
-                      <div className="h-4 bg-white/10 rounded-xl w-3/4" />
-                      <div className="h-4 bg-white/10 rounded-xl w-5/6" />
-                      <div className="h-4 bg-white/10 rounded-xl w-2/3" />
+                    <div className="flex flex-col gap-4 p-5 sm:p-6 border border-white/5 bg-white/[0.015] rounded-2xl max-w-md shadow-xl backdrop-blur-md relative overflow-hidden animate-fade-in">
+                      <AILoader states={[
+                        "Initializing secure pipeline...",
+                        "Formatting web response stream...",
+                        "Running high-precision synthesis...",
+                        "Securing intelligence pipeline..."
+                      ]} />
                     </div>
                   ) : null}
                 </div>
@@ -362,100 +426,101 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                 )}
               </motion.div>
 
-              {/* Thinking Indicator (Advanced Perplexity Style) */}
+              {/* Thinking Indicator (Advanced Spark Real-Time Web Search & Reasoning) */}
               <AnimatePresence mode="wait">
                 {message.status === 'thinking' && (
                   <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.3 } }}
-                    className="flex flex-col gap-6 mb-12"
+                    exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.25 } }}
+                    className="flex flex-col gap-6 mb-12 w-full max-w-3xl border border-white/5 bg-gradient-to-b from-[#ffffff]/[0.02] to-transparent p-5 sm:p-6 rounded-[1.5rem] shadow-xl backdrop-blur-md relative"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="ai-loader" id="ai-search-msg-loader">
-                        <div className="logo" id="ai-search-msg-logo">
-                          <div className="lines" id="ai-search-msg-lines"></div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-5">
+                      <div className="flex items-center gap-3.5">
+                        <div className="relative w-10 h-10 rounded-xl bg-brand/5 border border-brand/20 flex items-center justify-center text-brand shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                          <SearchIcon className="w-4.5 h-4.5 animate-pulse" />
+                          <div className="absolute inset-0 rounded-xl border border-brand/40 animate-ping opacity-25 pointer-events-none" style={{ animationDuration: '3.5s' }} />
                         </div>
-                        <div className="status" id="ai-search-msg-status">
-                          <div className="words" id="ai-search-msg-words">
-                            <div className="word" id="ai-search-msg-word-1">Thinking</div>
-                            <div className="word" id="ai-search-msg-word-2">Searching the web</div>
-                            <div className="word" id="ai-search-msg-word-3">Analyzing context</div>
-                          </div>
+                        <div>
+                          <h4 className="text-sm font-display font-bold text-white tracking-tight leading-none mb-1">
+                            Active Synthesis Protocol
+                          </h4>
+                          <p className="text-[10px] text-slate-400 leading-none">
+                            Analyzing domains, tracking live web nodes, and preparing context
+                          </p>
                         </div>
                       </div>
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-black text-red-500 animate-pulse">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        LIVE INTEL
-                      </span>
+                      
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-[9px] font-black text-brand tracking-widest uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
+                          LIVE WEB RESEARCHING
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="relative pl-12">
-                      {/* Vertical Progress Line with dynamic fill */}
-                      <div className="absolute left-[19px] top-0 bottom-0 w-[2px] bg-white/5 overflow-hidden rounded-full">
+                    <div className="relative pl-6 sm:pl-8 py-1">
+                      {/* Vertical Progress Line with dynamic glow */}
+                      <div className="absolute left-[3px] sm:left-[6px] top-0 bottom-0 w-[1.5px] bg-white/[0.04] overflow-hidden rounded-full">
                         <motion.div 
                           animate={{ 
-                            height: '50%',
-                            opacity: [0.2, 0.5, 0.2]
+                            top: ['-100%', '100%']
                           }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                          className="w-full bg-brand shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+                          transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
+                          className="absolute left-0 right-0 h-24 bg-gradient-to-b from-transparent via-brand to-transparent shadow-[0_0_10px_#3b82f6]"
                         />
                       </div>
 
-                      <div className="flex flex-col gap-5">
-                        {message.thoughts && message.thoughts.length > 0 && message.thoughts.map((thought, idx) => (
-                          <motion.div 
-                            key={idx}
-                            initial={{ opacity: 0, x: -15, filter: 'blur(8px)' }}
-                            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-                            transition={{ duration: 0.6, ease: "easeOut" }}
-                            className="flex items-center gap-4"
-                          >
-                            <div className="w-6 h-6 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
-                              <Check size={12} className="text-brand-light" />
-                            </div>
-                            <span className="text-sm text-slate-200 font-medium tracking-tight">
-                              {thought}
-                            </span>
-                          </motion.div>
-                        ))}
+                      <div className="flex flex-col gap-4.5">
+                        {message.thoughts && message.thoughts.length > 0 && message.thoughts.map((thought, idx) => {
+                          const isLatest = idx === message.thoughts.length - 1;
+                          return (
+                            <motion.div 
+                              key={idx}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.4 }}
+                              className="flex items-start gap-3.5"
+                            >
+                              <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 font-sans ${isLatest ? 'bg-brand/10 border border-brand/35 text-brand shadow-[0_0_12px_rgba(59,130,246,0.2)]' : 'bg-emerald-500/10 border border-emerald-500/15 text-emerald-400'}`}>
+                                {isLatest ? (
+                                  <div className="w-1.5 h-1.5 bg-brand rounded-full animate-ping" />
+                                ) : (
+                                  <Check size={10} className="stroke-[3px]" />
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span className={`text-[12px] font-medium leading-relaxed font-mono ${isLatest ? 'text-white' : 'text-slate-400'}`} dangerouslySetInnerHTML={{ __html: thought }} />
+                                {isLatest && (
+                                  <span className="text-[9px] text-slate-500 font-mono tracking-wider uppercase animate-pulse">Running high-precision compute step...</span>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                         
-                        {/* Thinking status indicator */}
+                        {/* Interactive dynamic step that coordinates thinking progress */}
                         <motion.div 
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className="flex items-center gap-4 pl-1"
+                          className="flex items-center gap-3.5 pl-0.5"
                         >
-                          <div className="w-6 h-6 rounded-lg bg-brand/5 border border-brand/10 flex items-center justify-center flex-shrink-0">
-                            <div className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
+                          <div className="w-4 h-4 rounded bg-brand/5 border border-brand/15 flex items-center justify-center shrink-0">
+                            <div className="w-2 h-2 border-[1.5px] border-brand/25 border-t-brand rounded-full animate-spin" />
                           </div>
-                          <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em] animate-pulse">
-                            Activating Spark edge mesh ...
+                          <span className="text-[10px] font-bold text-brand/80 uppercase tracking-[0.16em] font-display">
+                            Spark Reasoning Core Processing Web Insights...
                           </span>
                         </motion.div>
-                        </div>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
 
               {/* Post-completion Intel */}
               {message.status === 'complete' && (
                 <div className="flex flex-col gap-10 mt-6">
-                  {/* Summary / Digest - Move this higher if present? No, let's keep it here or remove if answer is enough */}
-                  {message.summary && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="bg-brand/5 border-l-2 border-brand/40 p-5 rounded-r-xl"
-                    >
-                      <p className="text-slate-400 text-sm leading-relaxed italic italic">
-                        {message.summary}
-                      </p>
-                    </motion.div>
-                  )}
-
                   {/* Related Queries */}
                   {message.relatedQueries && message.relatedQueries.length > 0 && (
                     <div className="flex flex-col gap-3 pt-6 border-t border-white/5">

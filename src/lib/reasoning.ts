@@ -203,14 +203,10 @@ At the very end of your response, provide exactly 4 short "Related Questions" pr
     // Stream query with high-precision model requested by user
     let response: any = null;
     const modelOptions = [
-      "z-ai/glm-4.5-flash",
-      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-      "nvidia/nemotron-3-nano-30b-a3b-reasoning:free",
-      "gpt-4o-mini",
-      "meta-llama/llama-3-70b-instruct"
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
     ];
     
-    let successModel = 'z-ai/glm-4.5-flash';
+    let successModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
     
     for (const model of modelOptions) {
       try {

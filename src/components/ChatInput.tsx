@@ -278,7 +278,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, isHome 
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => query.trim().length > 1 && suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="Ask Spark Search anything..."
+                placeholder="Ask Spark anything..."
                 className="w-full min-h-[44px] sm:min-h-[52px] leading-[24px] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 shadow-none resize-none py-2.5 sm:py-3.5 text-sm sm:text-base text-slate-100 placeholder:text-slate-400 max-h-32 sm:max-h-48 scrollbar-none [&::-webkit-scrollbar]:hidden relative z-10 block"
               />
             </div>
