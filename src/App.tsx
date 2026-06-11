@@ -9,7 +9,7 @@ import { ActionTooltip } from './components/ActionTooltip';
 import { Logo } from './components/Brand';
 import { ProtocolOverlay } from './components/ProtocolOverlay';
 import { AILoader } from './components/AILoader';
-import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, ArrowRight, User, LogOut, Layers, Shield, Zap, Globe, ChevronDown } from 'lucide-react';
+import { Sparkles, History, Search as SearchIcon, Cpu, ArrowDown, ArrowUp, ArrowRight, User, LogOut, Layers, Shield, Zap, Globe, ChevronDown, Terminal, Activity, Database, Server, Lock, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -26,6 +26,31 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [protocolType, setProtocolType] = useState<'guest' | 'user' | null>(null);
+  const [swiperCompleted, setSwiperCompleted] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Custom interactive routing configurations for impressive landing login page
+  const [selectedRoutingNode, setSelectedRoutingNode] = useState<'us-east' | 'eu-central' | 'apac-edge'>('us-east');
+  const [nodeMoniker, setNodeMoniker] = useState('spark-secure-node');
+  const [selectedSpeed, setSelectedSpeed] = useState<number>(2.8); // Million nodes/sec
+  const [selectedTemperature, setSelectedTemperature] = useState<number>(0.7);
+  const [activePreTab, setActivePreTab] = useState<'sandbox' | 'gateway'>('sandbox');
+  
+  // Automated state logs simulation for cybernetic terminal visualizer
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([
+    "[SYSTEM] SECURE CORE LOADED - OK",
+    "[IP-TUNNEL] LOCAL ENCLAVE GENERATED AT 127.0.0.1",
+    "[FABRIC] SPARK SEED CRYPTO SHIELDS ENGAGED",
+    "[TUNNEL] ACTIVE ROUTE AT HIGH-FREQUENCY CHANNELS",
+  ]);
+
+  // Simulated regional latency centroids
+  const [selectedLatencies, setSelectedLatencies] = useState<{ [key: string]: string }>({
+    'us-east': '12ms',
+    'eu-central': '28ms',
+    'apac-edge': '44ms'
+  });
+  const [isMeasuringLatency, setIsMeasuringLatency] = useState(false);
 
   // Simulation states for the interactive landing homepage preview
   const [demoQuery, setDemoQuery] = useState('');
@@ -37,6 +62,32 @@ export default function App() {
   const [selectedDemoTab, setSelectedDemoTab] = useState<'reasoning' | 'sources' | 'privacy'>('reasoning');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const swipeConstraintsRef = useRef<HTMLDivElement>(null);
+  
+  const [maxDragDistance, setMaxDragDistance] = useState(280);
+  const [dragPercentage, setDragPercentage] = useState(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (swipeConstraintsRef.current) {
+        const containerWidth = swipeConstraintsRef.current.offsetWidth;
+        // Padding is 6px on each side (p-1.5) = 12px, handle is 50px wide.
+        setMaxDragDistance(Math.max(100, containerWidth - 50 - 12));
+      }
+    };
+    
+    // Run initially
+    handleResize();
+    
+    // Run after a tiny layout timeout to ensure correct container sizing
+    const timer = setTimeout(handleResize, 100);
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, []);
 
   const handleDemoSearch = async (queryToSimulate: string) => {
     if (!queryToSimulate.trim() || isDemoLoading) return;
@@ -95,6 +146,19 @@ export default function App() {
     };
   };
 
+  const handleRandomizeMoniker = () => {
+    const prefixes = ['quantum', 'nexus', 'aurora', 'hyper', 'plasma', 'spark', 'vector', 'matrix', 'orbital', 'cyber'];
+    const suffixes = ['phoenix', 'spectre', 'tracker', 'pioneer', 'glide', 'comet', 'falcon', 'shield', 'vortex', 'core'];
+    const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const s = suffixes[Math.floor(Math.random() * suffixes.length)];
+    const num = Math.floor(Math.random() * 900) + 100;
+    const nextMoniker = `${p}-${s}-${num}`;
+    setNodeMoniker(nextMoniker);
+    toast.success("Cryptographic moniker compiled!", {
+      description: `Target descriptor node moniker designated as: ${nextMoniker}`,
+    });
+  };
+
   const addCustomSource = (source: Omit<CustomSource, 'id'>) => {
     setCustomSources(prev => [...prev, { ...source, id: Date.now().toString() }]);
   };
@@ -113,6 +177,51 @@ export default function App() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Simulation for live high-precision cybernetic terminal ticks
+  useEffect(() => {
+    if (isAuthed) return;
+
+    const phrases = [
+      "COMPILING WEB NODES IN SILICON VALLEY centroids...",
+      "TUNING INFERENCE DEVIATION STANDARD FOR GEMINI...",
+      "REALLOCATING COMPACT QUANT INDEX BLOCKS...",
+      "SYNC ENGINE STATEFUL HEARTBEAT: HEALTHY",
+      "SECURE SHADOW SANDBOX HANDSHAKE ESTABLISHED",
+      "ENCRYPTING COLD GRAPH STATE-RELATIONS...",
+      "SPARK HIGH-PRECISION DECODE PROTOCOL OK",
+    ];
+
+    const logInterval = setInterval(() => {
+      setTerminalLogs(prev => {
+        const nextPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+        const timeStr = new Date().toLocaleTimeString();
+        const newLog = `[${timeStr}] ${nextPhrase}`;
+        return [...prev.slice(-3), newLog]; // Keep last 4 logs
+      });
+    }, 4000);
+
+    const latencyInterval = setInterval(() => {
+      setSelectedLatencies(prev => {
+        const fluctuate = (msStr: string) => {
+          const num = parseInt(msStr);
+          const diff = Math.floor(Math.random() * 5) - 2; // -2 to +2
+          const next = Math.max(5, num + diff);
+          return `${next}ms`;
+        };
+        return {
+          'us-east': fluctuate(prev['us-east']),
+          'eu-central': fluctuate(prev['eu-central']),
+          'apac-edge': fluctuate(prev['apac-edge']),
+        };
+      });
+    }, 3500);
+
+    return () => {
+      clearInterval(logInterval);
+      clearInterval(latencyInterval);
+    };
+  }, [isAuthed]);
 
   // Global script error catcher to prevent crashes and reloads
   useEffect(() => {
@@ -230,18 +339,31 @@ export default function App() {
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
+    setLoginError(null);
     try {
       await loadPuter();
       const puter = (window as any).puter;
-      if (!puter) throw new Error("Puter failed to load");
+      if (!puter) throw new Error("Connection provider (Puter script) failed to load. Please inspect network headers.");
       
       await puter.auth.signIn();
       const currentUser = await puter.auth.getUser();
-      setUser(currentUser);
+      
+      const sessionDisplayName = nodeMoniker.trim() ? nodeMoniker.trim() : "spark-node";
+      const customizedUser = {
+        ...currentUser,
+        username: currentUser.username ? `${currentUser.username} [${sessionDisplayName}]` : `Client [${sessionDisplayName}]`,
+        routingNode: selectedRoutingNode
+      };
+      
+      setUser(customizedUser);
       setProtocolType('user');
-    } catch (e) {
+    } catch (e: any) {
       console.error("Sign in failed", e);
-      toast.error("Protocol Error", { description: "Failed to initialize Spark Search Workspace." });
+      const errorMsg = e?.message || "Failed to establish Workspace connection session.";
+      setLoginError(errorMsg);
+      setSwiperCompleted(false);
+      setDragPercentage(0);
+      toast.error("Protocol Error", { description: errorMsg });
     } finally {
       setIsLoggingIn(false);
     }
@@ -249,7 +371,12 @@ export default function App() {
 
   const handleGuestLogin = async () => {
     setProtocolType('guest');
-    setUser({ username: "Guest User", isGuest: true });
+    const sessionDisplayName = nodeMoniker.trim() ? nodeMoniker.trim() : "spark-guest";
+    setUser({ 
+      username: `Guest@${sessionDisplayName}`, 
+      isGuest: true,
+      routingNode: selectedRoutingNode
+    });
     // Reset messages when switching to guest mode to ensure reference-only context
     setMessages([]);
   };
@@ -264,6 +391,8 @@ export default function App() {
     setIsAuthed(false);
     setIsGuest(false);
     setUser(null);
+    setSwiperCompleted(false);
+    setDragPercentage(0);
     setMessages([]);
     setCustomSources([]);
     
@@ -479,18 +608,18 @@ export default function App() {
            </div>
          </div>
        </div>
-    );
-  }
+     );
+   }
 
   if (!isAuthed) {
     return (
-      <div className="min-h-[100dvh] flex flex-col bg-[#000000] text-slate-100 relative overflow-x-hidden selection:bg-brand/20 selection:text-white">
-        {/* Background Decorative Ambient Radials */}
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-brand/10 blur-[150px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[#3b82f6]/10 blur-[150px] rounded-full pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.12] pointer-events-none mix-blend-overlay" />
-        <div className="absolute inset-0 z-0 opacity-[0.02] pointer-events-none" 
-          style={{ backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, #ffffff 1px, transparent 0)', backgroundSize: '36px 36px' }} 
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#000000] text-slate-100 relative overflow-hidden selection:bg-brand/20 selection:text-white font-sans p-4">
+        {/* Background Premium Animated Cosmic Radiance Filters */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gradient-to-tr from-brand/5 to-indigo-500/10 blur-[130px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-gradient-to-br from-indigo-500/5 to-brand-light/10 blur-[130px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.05] pointer-events-none mix-blend-overlay" />
+        <div className="absolute inset-0 z-0 opacity-[0.015] pointer-events-none" 
+          style={{ backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, #ffffff 1px, transparent 0)', backgroundSize: '40px 40px' }} 
         />
 
         <AnimatePresence>
@@ -499,355 +628,190 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Sticky Glassmorphic Header */}
-        <header className="nav-blur px-6 sm:px-10 py-4 sm:py-5 flex justify-between items-center z-50 sticky top-0 w-full transition-all duration-300">
-          <div className="flex items-center gap-3">
-            <Logo size={36} className="text-white" />
-            <div className="flex flex-col">
-              <span className="text-lg font-bold font-display tracking-tight text-white">Spark Search</span>
-              <span className="text-[9px] font-black tracking-widest text-brand-light uppercase">DECIDIOUS CORE</span>
+        {/* Central Master Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-md bg-zinc-950/70 border border-white/[0.08] backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-[0_30px_70px_rgba(0,0,0,0.8)] relative overflow-hidden text-center z-10"
+        >
+          {/* Subtle top edge glow */}
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
+
+          {/* Logo Brand Header */}
+          <div className="flex flex-col items-center gap-3.5 mb-8 select-none">
+            <div className="p-3 bg-white/[0.02] border border-white/[0.08] rounded-2xl shadow-inner relative group">
+              <Logo size={46} className="text-white group-hover:scale-105 duration-300 transition-transform" />
+              <div className="absolute inset-0 rounded-2xl bg-brand/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-white">Spark Search</h1>
+              <p className="text-xs text-slate-400 tracking-wide">Secure Client Ingest Node</p>
             </div>
           </div>
-          <button
-            onClick={handleLogin}
-            disabled={isLoggingIn}
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white tracking-wide transition-all active:scale-95 duration-200"
-          >
-            {isLoggingIn ? <Cpu className="animate-spin w-4 h-4" /> : <User className="w-4 h-4 text-brand-light" />}
-            <span className="hidden sm:inline">Connect Workspace</span>
-            <span className="sm:hidden">Connect</span>
-          </button>
-        </header>
 
-        {/* Interactive Main Body container */}
-        <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-12 sm:py-20 flex flex-col items-center justify-center relative z-10">
-          
-          {/* Main Hero Header */}
-          <div className="text-center mb-12 sm:mb-16 select-none">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-brand/10 to-brand-light/10 border border-brand/20 px-3 py-1.5 rounded-full mb-6 text-[10px] sm:text-xs font-bold tracking-wider text-brand-light uppercase"
+          {/* Error Panel in case of authentication failure */}
+          {loginError && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 p-4 rounded-2xl border border-rose-500/15 bg-rose-950/10 text-left text-xs text-rose-300/90 leading-relaxed flex items-start gap-2.5"
             >
-              <Sparkles size={12} className="text-brand" />
-              INTELLIGENT EDGE SEARCH PROTOCOL
+              <Shield className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold block text-rose-200 mb-0.5">Authorization Failed</span>
+                {loginError}
+              </div>
             </motion.div>
-            
-            <motion.h1
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1, duration: 1.2 }}
-              className="text-4xl min-[375px]:text-5xl sm:text-7xl font-bold tracking-tighter text-white font-display mb-6"
-            >
-              Ask Spark anything
-            </motion.h1>
-            
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3, duration: 1.2 }}
-              className="text-sm sm:text-xl text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto px-4"
-            >
-              Watch Spark coordinate live web indexers, stream recursive deep reasoning layers, and compile high-precision syntheses directly inside your private workspace.
-            </motion.p>
-          </div>
-
-          {/* Search Box Sandbox Compartment */}
-          {isSuggestionsDropdownOpen && (
-            <div 
-              className="fixed inset-0 z-20 cursor-default" 
-              onClick={() => setIsSuggestionsDropdownOpen(false)}
-            />
           )}
 
-          <div className="w-full max-w-3xl mb-12 relative z-30 px-4 sm:px-0">
-            <div className="glass-card bg-white/[0.03] backdrop-blur-3xl border border-brand/45 hover:border-brand/70 focus-within:border-brand rounded-[32px] p-2 flex flex-col gap-2 relative shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(59,130,246,0.35),_0_0_8px_rgba(59,130,246,0.22)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(59,130,246,0.5),_0_0_12px_rgba(59,130,246,0.32)] focus-within:shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_0_1.5px_rgba(59,130,246,0.65),_0_0_16px_rgba(59,130,246,0.4)] transition-all duration-300">
-              {/* Interactive Sandbox Form */}
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setIsSuggestionsDropdownOpen(false);
-                  handleDemoSearch(demoQuery);
-                }}
-                className="flex items-center gap-2 sm:gap-3"
-              >
-                <div className="pl-3 text-slate-500 group-focus-within:text-brand transition-colors">
-                  <SearchIcon size={18} />
-                </div>
-                <input
-                  type="text"
-                  value={demoQuery}
-                  onFocus={() => setIsSuggestionsDropdownOpen(true)}
-                  onChange={(e) => setDemoQuery(e.target.value)}
-                  placeholder="Ask Spark anything..."
-                  className="flex-1 bg-transparent border-0 outline-none text-slate-100 placeholder:text-slate-500 py-3 sm:py-4 text-xs sm:text-base focus:ring-0 min-w-0"
-                />
-                
-                {/* Suggestions Toggle Button */}
+          {/* Credential Customizers */}
+          <div className="space-y-4 mb-8 text-left">
+            {/* Moniker Input */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <span>Descriptor Moniker</span>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsSuggestionsDropdownOpen(prev => !prev);
+                  onClick={handleRandomizeMoniker}
+                  className="text-[9px] hover:text-white text-indigo-400 uppercase font-bold flex items-center gap-1 cursor-pointer hover:underline focus:outline-none transition-colors"
+                >
+                  <span>🎲 Randomize</span>
+                </button>
+              </div>
+              <div className="relative rounded-xl bg-white/[0.015] border border-white/[0.06] focus-within:border-brand/40 focus-within:bg-white/[0.03] transition-all p-2.5 flex items-center gap-2">
+                <span className="font-mono text-[10px] text-brand-light/50 uppercase select-none font-medium">NAME:</span>
+                <input
+                  type="text"
+                  value={nodeMoniker}
+                  onChange={(e) => {
+                    const clean = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                    setNodeMoniker(clean);
                   }}
-                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold text-slate-400 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white border border-white/5 transition-all duration-200 shrink-0"
-                >
-                  <span className="hidden sm:inline">Suggested</span>
-                  <ChevronDown size={14} className={`transform transition-transform duration-200 ${isSuggestionsDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+                  placeholder="spark-node-alias"
+                  maxLength={24}
+                  className="flex-1 bg-transparent border-none outline-none text-slate-200 placeholder:text-slate-700 text-xs font-mono py-0.5 focus:ring-0"
+                />
+              </div>
+            </div>
 
-                <button
-                  type="submit"
-                  disabled={isDemoLoading || !demoQuery.trim()}
-                  className={`px-4 sm:px-5 py-2 sm:py-3 rounded-2xl text-[10px] sm:text-xs font-bold font-display tracking-wider transition-all duration-300 flex items-center gap-1.5 shrink-0
-                    ${demoQuery.trim() && !isDemoLoading
-                      ? 'bg-brand text-white shadow-lg hover:scale-105 active:scale-95'
-                      : 'bg-white/5 text-slate-600 cursor-not-allowed'}`}
-                >
-                  {isDemoLoading ? "Processing" : "Preview"}
-                </button>
-              </form>
-
-              {/* Autocomplete Suggestions Dropdown inside Search Box Container */}
-              <AnimatePresence>
-                {isSuggestionsDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.99 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.99 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="absolute left-0 right-0 top-full mt-2 bg-slate-950/95 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.9)] z-40 p-2 flex flex-col gap-1 max-h-[280px] overflow-y-auto"
-                  >
-                    <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 mb-1 flex justify-between items-center select-none">
-                      <span>Suggested Research Prompts</span>
-                      <span className="text-[9px] font-medium text-slate-600 lowercase">click to preview</span>
-                    </div>
-                    {[
-                      { label: '🧬 CRISPR Genomics', prompt: 'Analyze latest advancements in CRISPR genetic sequencing techniques.', desc: 'Target sequences & base editing breakthroughs' },
-                      { label: '🔋 Solid-State Battery', prompt: 'Provide engineering status of solid-state lithium ceramic cells.', desc: 'Volumetric density peak & electrolyte longevity' },
-                      { label: '🪐 Habitable Kepler', prompt: 'What are the habitability indicators of exoplanet Kepler-186f?', desc: 'M-dwarf stellar radiation & atmosphere models' }
-                    ].map(({ label, prompt, desc }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => {
-                          setDemoQuery(prompt);
-                          handleDemoSearch(prompt);
-                          setIsSuggestionsDropdownOpen(false);
-                        }}
-                        className="w-full text-left p-2.5 rounded-xl hover:bg-white/[0.05] active:bg-white/10 flex flex-col gap-0.5 transition-all text-slate-200 outline-none"
-                      >
-                        <span className="text-xs sm:text-sm font-bold text-slate-100">{label}</span>
-                        <span className="text-[10px] sm:text-xs text-slate-400 line-clamp-1">{desc}</span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            {/* Region/Centroid selection */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">System Routing Centroid</span>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'us-east', name: 'US-EAST', ping: '12ms' },
+                  { id: 'eu-central', name: 'EU-CENT', ping: '28ms' },
+                  { id: 'apac-edge', name: 'APAC-EDGE', ping: '44ms' }
+                ].map((node) => {
+                  const isSelected = selectedRoutingNode === node.id;
+                  return (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() => setSelectedRoutingNode(node.id as any)}
+                      className={`flex flex-col p-2.5 rounded-xl border transition-all cursor-pointer text-left focus:outline-none select-none
+                        ${isSelected 
+                          ? 'bg-brand/10 border-brand/40 shadow-[0_0_12px_rgba(59,130,246,0.12)]' 
+                          : 'bg-white/[0.01] border-white/[0.05] hover:border-white/10 hover:bg-white/[0.02]'}`}
+                    >
+                      <span className={`text-[10px] font-bold font-mono tracking-wide ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                        {node.name}
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-400 mt-0.5">{node.ping}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Interactive Live Stream Console Output Panel */}
-          <AnimatePresence mode="wait">
-            {isDemoLoading && (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="w-full max-w-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-3xl p-8 mb-12 flex items-center justify-center animate-fade-in"
-              >
-                <AILoader />
-              </motion.div>
-            )}
-
-            {demoResponse && (
-              <motion.div
-                key="response"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                className="w-full max-w-2xl bg-white/[0.01] border border-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 mb-12 shadow-[0_10px_40px_rgba(37,99,235,0.05)] relative overflow-hidden"
-              >
-                {/* Micro Ambient Glow behind markdown output */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-brand/10 blur-3xl rounded-full" />
+          {/* Core Interactive iOS Swipe component */}
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <div ref={swipeConstraintsRef} className="relative w-full h-[62px] bg-zinc-950 border border-white/[0.08] hover:border-white/[0.12] rounded-full flex items-center p-1.5 overflow-hidden select-none transition-colors">
                 
-                <div className={`markdown-body ${isDemoStreaming ? 'streaming' : ''} text-slate-300 text-sm sm:text-base leading-relaxed`}>
-                  <ReactMarkdown>{demoResponse}</ReactMarkdown>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {/* Tech background track progress fill bar */}
+                <div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-brand/10 to-brand/35 transition-all duration-75 pointer-events-none rounded-l-full z-0"
+                  style={{ width: `${Math.max(12, dragPercentage)}%` }}
+                />
 
-          {/* High-Fidelity Login Section Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="w-full max-w-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-[#030712]/50 p-6 sm:p-10 rounded-[2rem] text-center shadow-2xl backdrop-blur-xl relative overflow-hidden group hover:border-brand/35 transition-all duration-500 animate-fade-in"
-          >
-            {/* Ambient Animated Corner Flare */}
-            <div className="absolute -top-10 -right-10 w-44 h-44 bg-brand/10 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-blue-500/10 blur-3xl rounded-full opacity-40 group-hover:opacity-80 transition-opacity duration-700 pointer-events-none" />
+                {/* Rolling background shimmer text indicator */}
+                <div className="absolute inset-x-12 inset-y-0 flex items-center justify-center pointer-events-none text-xs text-white/40 tracking-wider font-mono select-none z-0">
+                  <span className="animate-pulse bg-gradient-to-r from-slate-400 via-white to-slate-400 bg-clip-text text-transparent select-none font-medium">
+                    {isLoggingIn ? "Authorizing..." : "Slide to Authorize Node ▸"}
+                  </span>
+                </div>
 
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-brand/5 border border-brand/20 flex items-center justify-center mb-6 text-brand shadow-[0_0_30px_rgba(59,130,246,0.15)] relative">
-              <Shield className="w-6.5 h-6.5" />
-              <div className="absolute inset-0 rounded-2xl border border-brand/40 animate-ping opacity-25 pointer-events-none" style={{ animationDuration: '3s' }} />
-            </div>
-
-            <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-white tracking-tight leading-none mb-3">
-              Power Premium Spark Search
-            </h3>
-
-            <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed mb-8">
-              Connect via Puter Cloud Workspace for unconstrained real-time indexing, multi-agent reasoning, and zero data leakage.
-            </p>
-
-            {/* Feature Checkpoints */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto text-left mb-8">
-              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
-                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
-                  <Globe size={11} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-200">Continuous Live Querying</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Continuous crawling & deep indexes synthesis.</p>
-                </div>
-              </div>
-              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
-                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
-                  <Cpu size={11} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-200">High-Precision Models</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Deep multi-step reasoning capabilities.</p>
-                </div>
-              </div>
-              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
-                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
-                  <Shield size={11} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-200">Sovereign Data Privacy</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Strictly runs inside secure sandboxed nodes.</p>
-                </div>
-              </div>
-              <div className="bg-white/[0.02] border border-white/5 p-3.5 rounded-xl flex items-start gap-3">
-                <div className="w-5 h-5 rounded-md bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0 mt-0.5">
-                  <Zap size={11} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-200">Always Free To Start</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Unlimited basic queries for personal research.</p>
-                </div>
+                {/* Framer motion draggable absolute handle button */}
+                <motion.div
+                  drag="x"
+                  dragConstraints={{ left: 0, right: maxDragDistance }}
+                  dragElastic={0.1}
+                  dragMomentum={false}
+                  onDrag={(event, info) => {
+                    setDragPercentage(Math.min(100, Math.max(0, (info.offset.x / maxDragDistance) * 100)));
+                  }}
+                  onDragEnd={(event, info) => {
+                    if (info.offset.x > maxDragDistance * 0.70 && !isLoggingIn) {
+                      setSwiperCompleted(true);
+                      setDragPercentage(100);
+                      handleLogin();
+                    } else {
+                      setSwiperCompleted(false);
+                      setDragPercentage(0);
+                    }
+                  }}
+                  animate={{ x: swiperCompleted ? maxDragDistance : 0 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 26 }}
+                  className={`absolute left-1.5 z-10 w-[50px] h-[50px] rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-[0_4px_16px_rgba(0,0,0,0.55)] border transition-all duration-150
+                    ${isLoggingIn 
+                      ? 'bg-zinc-800 border-zinc-700 text-slate-500' 
+                      : swiperCompleted 
+                        ? 'bg-emerald-500 border-emerald-400 text-white' 
+                        : 'bg-white border-white hover:bg-slate-100 text-black'}`}
+                >
+                  {isLoggingIn ? (
+                    <Cpu className="w-5 h-5 animate-spin text-brand" />
+                  ) : swiperCompleted ? (
+                    <Cpu className="w-5 h-5 text-white animate-pulse" />
+                  ) : (
+                    <ArrowRight className="w-5 h-5 text-black" />
+                  )}
+                </motion.div>
+                
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-              <button
-                onClick={handleLogin}
-                disabled={isLoggingIn}
-                className="w-full sm:w-auto relative group overflow-hidden bg-white text-slate-950 font-black text-xs sm:text-sm px-8 py-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_15px_30px_rgba(255,255,255,0.08)] hover:shadow-brand/25 flex items-center justify-center gap-2.5 disabled:opacity-55 shrink-0 cursor-pointer"
-              >
-                {isLoggingIn ? (
-                  <>
-                    <Cpu className="animate-spin w-4 h-4 text-brand" />
-                    <span>Authorizing Workspace...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4 text-brand fill-brand animate-pulse" />
-                    <span>Connect Workspace</span>
-                  </>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-r from-brand-light/35 to-transparent translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-700 pointer-events-none" />
-              </button>
-
+            {/* Direct fallback trigger button */}
+            <button
+              onClick={handleLogin}
+              disabled={isLoggingIn}
+              className="w-full py-3 px-4 rounded-xl text-xs font-bold font-mono border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] text-slate-300 hover:text-white transition-all duration-200 active:scale-[0.98] cursor-pointer"
+            >
+              Configure standard Puter connection instead
+            </button>
+            
+            {/* Guest Action trigger */}
+            <div className="pt-2">
               <button
                 type="button"
                 onClick={handleGuestLogin}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#ffffff]/[0.03] hover:bg-[#ffffff]/[0.07] border border-white/5 px-8 py-4 rounded-xl text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition-all active:scale-[0.98] duration-200 cursor-pointer"
+                className="text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4 cursor-pointer font-medium focus:outline-none transition-colors"
               >
-                <span>Continue as Guest</span>
-                <ArrowRight size={14} className="text-slate-400 transition-transform group-hover:translate-x-1 duration-200" />
+                Launch Offline sandbox session as guest
               </button>
             </div>
-          </motion.div>
-
-          {/* Interactive bento feature grid section */}
-          <div className="mt-16 sm:mt-24 w-full">
-            <h3 className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] text-center mb-8">
-              Decentralized Architectural Pillars
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-              {[
-                {
-                  id: 'reasoning',
-                  icon: Cpu,
-                  title: 'Edge Reasoning',
-                  shortDesc: 'Multi-layer sequential inference verified at client nodes.',
-                  detail: 'Spark routes requests through non-linear reasoning, allowing self-correcting prompt synthesizers to extract optimal context representation.'
-                },
-                {
-                  id: 'sources',
-                  icon: Globe,
-                  title: 'Live Synthesis',
-                  shortDesc: 'Aggregated real-time indexing with deep integrity filters.',
-                  detail: 'Every research query aggregates authoritative indices and academic networks concurrently, compiling pristine citations with zero hallucinated state.'
-                },
-                {
-                  id: 'privacy',
-                  icon: Shield,
-                  title: 'Sovereign Privacy',
-                  shortDesc: 'Decentralized local sandbox encryption with zero user-tracking.',
-                  detail: 'Spark container architecture hosts processing logic completely stateless. No cookies, trackers, or centralized data logs are generated during execution.'
-                }
-              ].map((item) => {
-                const Icon = item.icon;
-                const isSelected = selectedDemoTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setSelectedDemoTab(item.id as any)}
-                    className={`flex flex-col text-left p-6 rounded-2xl border transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-brand
-                      ${isSelected
-                        ? 'bg-brand/5 border-brand shadow-[0_0_30px_rgba(59,130,246,0.1)]'
-                        : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]'}`}
-                  >
-                    <div className={`p-2.5 rounded-xl border flex items-center justify-center mb-4 transition-colors
-                      ${isSelected
-                        ? 'bg-brand/15 border-brand/20 text-brand-light'
-                        : 'bg-white/5 border-white/10 text-slate-400'}`}
-                    >
-                      <Icon size={18} />
-                    </div>
-                    <h4 className="text-base font-bold text-white mb-1">{item.title}</h4>
-                    <p className="text-xs text-slate-400 leading-snug mb-3">{item.shortDesc}</p>
-                    
-                    {isSelected && (
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="text-[11px] text-slate-500 leading-relaxed border-t border-brand/20 pt-3 mt-1"
-                      >
-                        {item.detail}
-                      </motion.p>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
-          {/* Technical Footer Stack */}
-          <div className="mt-20 flex flex-col items-center gap-2 text-[9px] font-mono text-slate-600 uppercase tracking-widest">
-            <span>SPARK PROTOCOL VER 2.4.9 // HOST STACK : OK</span>
-            <span>SECURED ENCRYPTED EDGE WORKSPACE</span>
+          {/* Secure disclaimer */}
+          <div className="mt-8 border-t border-white/[0.05] pt-4 flex items-center justify-center gap-1.5 text-[9px] font-mono text-slate-600 uppercase tracking-widest select-none">
+            <Lock className="w-3 h-3" />
+            <span>AES-256 Cloud Shield Protection Active</span>
           </div>
 
-        </main>
+        </motion.div>
       </div>
     );
   }

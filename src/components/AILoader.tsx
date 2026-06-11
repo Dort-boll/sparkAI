@@ -8,26 +8,32 @@ interface AILoaderProps {
 const defaultStates = [
   "Thinking...",
   "Searching the web...",
-  "Analyzing context..."
+  "Reading sources...",
+  "Understanding context...",
+  "Cross-checking facts...",
+  "Building answer...",
+  "Finalizing..."
 ];
 
 export const AILoader: React.FC<AILoaderProps> = ({ 
   states = defaultStates, 
-  intervalMs = 2200 
+  intervalMs = 1700 
 }) => {
   const [index, setIndex] = useState(0);
-  const [fadeOut, setFadeOut] = useState(false);
+  const [showClass, setShowClass] = useState('show');
 
   useEffect(() => {
     if (states.length <= 1) return;
 
     const interval = setInterval(() => {
-      setFadeOut(true);
+      // Trigger Claude-style hide animation
+      setShowClass('hide');
 
       setTimeout(() => {
         setIndex((prevIndex) => (prevIndex + 1) % states.length);
-        setFadeOut(false);
-      }, 300); // matching fadeOut duration
+        // Trigger Claude-style show animation
+        setShowClass('show');
+      }, 280); // matching fade transition duration
 
     }, intervalMs);
 
@@ -36,14 +42,18 @@ export const AILoader: React.FC<AILoaderProps> = ({
 
   return (
     <div className="loader-container" id="spark-ai-loader-root">
-      {/* FIXED LOGO */}
-      <div className="loader-logo" id="spark-ai-loader-logo"></div>
+      {/* NEW CONNECTING PATTERN: PILLARS */}
+      <div className="loader-pillars" id="spark-ai-loader-pillars">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
 
       {/* TEXT AREA */}
       <div className="loader-text-box" id="spark-ai-loader-textbox">
         <div 
           id="spark-ai-loader-text"
-          className={`loader-text-shimmer ${fadeOut ? 'loader-fade-out' : ''}`}
+          className={`loader-text-shimmer ${showClass}`}
         >
           {states[index]}
         </div>
@@ -51,3 +61,4 @@ export const AILoader: React.FC<AILoaderProps> = ({
     </div>
   );
 };
+

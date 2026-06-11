@@ -426,94 +426,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onSend, isGue
                 )}
               </motion.div>
 
-              {/* Thinking Indicator (Advanced Spark Real-Time Web Search & Reasoning) */}
+              {/* Thinking Indicator using purely the user's custom AILoader */}
               <AnimatePresence mode="wait">
                 {message.status === 'thinking' && (
                   <motion.div 
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.25 } }}
-                    className="flex flex-col gap-6 mb-12 w-full max-w-3xl border border-white/5 bg-gradient-to-b from-[#ffffff]/[0.02] to-transparent p-5 sm:p-6 rounded-[1.5rem] shadow-xl backdrop-blur-md relative"
+                    className="flex flex-col gap-4 p-5 sm:p-6 border border-white/5 bg-white/[0.015] rounded-2xl max-w-md shadow-xl backdrop-blur-md relative overflow-hidden animate-fade-in"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-5">
-                      <div className="flex items-center gap-3.5">
-                        <div className="relative w-10 h-10 rounded-xl bg-brand/5 border border-brand/20 flex items-center justify-center text-brand shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                          <SearchIcon className="w-4.5 h-4.5 animate-pulse" />
-                          <div className="absolute inset-0 rounded-xl border border-brand/40 animate-ping opacity-25 pointer-events-none" style={{ animationDuration: '3.5s' }} />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-display font-bold text-white tracking-tight leading-none mb-1">
-                            Active Synthesis Protocol
-                          </h4>
-                          <p className="text-[10px] text-slate-400 leading-none">
-                            Analyzing domains, tracking live web nodes, and preparing context
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-[9px] font-black text-brand tracking-widest uppercase">
-                          <span className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
-                          LIVE WEB RESEARCHING
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="relative pl-6 sm:pl-8 py-1">
-                      {/* Vertical Progress Line with dynamic glow */}
-                      <div className="absolute left-[3px] sm:left-[6px] top-0 bottom-0 w-[1.5px] bg-white/[0.04] overflow-hidden rounded-full">
-                        <motion.div 
-                          animate={{ 
-                            top: ['-100%', '100%']
-                          }}
-                          transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
-                          className="absolute left-0 right-0 h-24 bg-gradient-to-b from-transparent via-brand to-transparent shadow-[0_0_10px_#3b82f6]"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-4.5">
-                        {message.thoughts && message.thoughts.length > 0 && message.thoughts.map((thought, idx) => {
-                          const isLatest = idx === message.thoughts.length - 1;
-                          return (
-                            <motion.div 
-                              key={idx}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.4 }}
-                              className="flex items-start gap-3.5"
-                            >
-                              <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 font-sans ${isLatest ? 'bg-brand/10 border border-brand/35 text-brand shadow-[0_0_12px_rgba(59,130,246,0.2)]' : 'bg-emerald-500/10 border border-emerald-500/15 text-emerald-400'}`}>
-                                {isLatest ? (
-                                  <div className="w-1.5 h-1.5 bg-brand rounded-full animate-ping" />
-                                ) : (
-                                  <Check size={10} className="stroke-[3px]" />
-                                )}
-                              </div>
-                              <div className="flex flex-col gap-0.5">
-                                <span className={`text-[12px] font-medium leading-relaxed font-mono ${isLatest ? 'text-white' : 'text-slate-400'}`} dangerouslySetInnerHTML={{ __html: thought }} />
-                                {isLatest && (
-                                  <span className="text-[9px] text-slate-500 font-mono tracking-wider uppercase animate-pulse">Running high-precision compute step...</span>
-                                )}
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                        
-                        {/* Interactive dynamic step that coordinates thinking progress */}
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="flex items-center gap-3.5 pl-0.5"
-                        >
-                          <div className="w-4 h-4 rounded bg-brand/5 border border-brand/15 flex items-center justify-center shrink-0">
-                            <div className="w-2 h-2 border-[1.5px] border-brand/25 border-t-brand rounded-full animate-spin" />
-                          </div>
-                          <span className="text-[10px] font-bold text-brand/80 uppercase tracking-[0.16em] font-display">
-                            Spark Reasoning Core Processing Web Insights...
-                          </span>
-                        </motion.div>
-                      </div>
-                    </div>
+                    <AILoader />
                   </motion.div>
                 )}
               </AnimatePresence>
